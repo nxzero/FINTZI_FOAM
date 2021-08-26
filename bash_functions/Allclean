@@ -1,0 +1,10 @@
+#!/bin/sh
+# cd ${0%/*} || exit 1                        # Run from this directory
+. $WM_PROJECT_DIR/bin/tools/CleanFunctions  # Tutorial clean functions
+rm -f log.*
+rm -rf constant/triSurface/*
+cleanCase0
+
+#rm -f 0/T
+
+#------------------------------------------------------------------------------

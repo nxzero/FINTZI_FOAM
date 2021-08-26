@@ -1,0 +1,49 @@
+#!/bin/sh
+#cd ${0%/*} || exit 1                        # Run from this directory
+. $WM_PROJECT_DIR/bin/tools/RunFunctions    # Tutorial run functions
+rm -rf log.*
+
+# Meshing in parallel
+#---------------------
+mv system/blockMeshDict.$1 system/blockMeshDict
+runApplication blockMesh
+mv system/blockMeshDict system/blockMeshDict.$1
+
+#numberOfSubdomains=4
+#sed -i 's/^numberOfSubdomains.*/numberOfSubdomains '$numberOfSubdomains';/' system/decomposeParDict
+runApplication decomposePar -force
+mv log.decomposePar log.decomposeParMesh
+
+runParallel snappyHexMesh -overwrite
+
+runApplication reconstructParMesh -constant
+rm -rf processor*
+runApplication renumberMesh -overwrite
+
+# snappyHexMesh -overwrite
+
+# cd constant/triSurface/
+# for i in $(\ls *.eMesh)
+# do
+#  surfaceFeatureConvert $i $(echo $i | sed -e 's/eMesh/vtk/')
+# done
+# cd -
+
+# Running in parallel
+#---------------------
+
+restore0Dir
+
+#numberOfSubdomains=6
+#sed -i 's/^numberOfSubdomains.*/numberOfSubdomains '$numberOfSubdomains';/' system/decomposeParDict
+runApplication decomposePar -force
+mv log.decomposePar log.decomposeParRun
+
+application=$(getApplication)
+runParallel ${application}
+
+runApplication reconstructPar -noFunctionObjects
+rm -rf processor*
+runApplication foamLog log.${application}
+
+#------------------------------------------------------------------------------
