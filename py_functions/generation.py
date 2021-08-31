@@ -42,6 +42,8 @@ class Six_pack():
         self.CylsMod = set()
         self.CylNoMod = set()
         self.addPerio   =1
+        self.Rmin = 0.95
+        self.Rmax = 1.01
 
     def run(self):        
         self.print_parameters()
@@ -453,7 +455,6 @@ class Six_pack():
                 
             return 0
         if self.shape == 'Sphere':
-            """The goal is to shift all cylinders if one is tangent to the sides"""
             for Sphere in self.Spheres:
                 idSphere = Sphere[1]
                 Sphere = Sphere[0]
@@ -469,7 +470,7 @@ class Six_pack():
                         # distance normal
                         Dist1 = np.dot(Dist1,n)
                         # Angle d inclinaison par rapport au plan 
-                        if abs(Dist1) >= Sphere.r*0.85 and abs(Dist1) <= Sphere.r*1.01:
+                        if abs(Dist1) >= Sphere.r*self.Rmin and abs(Dist1) <= Sphere.r*self.Rmax:
                             self.ItIsTooTangent = 1
                         if self.ItIsTooTangent == 1:
                             print( 'The Sphere ',idSphere,'is tangent to the',key,'plan')
