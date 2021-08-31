@@ -462,7 +462,7 @@ class Six_pack():
                     if key not in ['Ixt','Iyt','Izt']:
                         continue
                     self.ItIsTooTangent = 0 
-                    if Sphere.pts[key]['X'] != [] :
+                    if key in Sphere.plansKeys:
                         n = Sphere.plans[key][0]
                         Ip = Sphere.plans[key][1]
                         # distance to the plan :
