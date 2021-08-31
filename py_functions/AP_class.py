@@ -226,6 +226,7 @@ class Analyse_Parametrique():
         for P in self.parameters_list:
             if self.REV.DoGen:
                 self.REV.Cyls = []
+                self.REV.Spheres = []
             os.system(self.bashDir+'Allclean')
             self.set_parameters_dictionnary(P)
             self.refinement_if_needed(P)
@@ -445,12 +446,12 @@ class Analyse_Parametrique():
                     name = 'cercle'+'_'+str(Cyl[1])+'_'+key
                     self.eMesh(Cyl[0].M[key],name,0)
 
-        ##### for sphere #####
-        for Sphere,i in zip(self.REV.Spheres,range(len(self.REV.Spheres))):
-            for key in Sphere[0].keys:
-                if Sphere[0].M[key] != [] :
-                    name = 'cercle'+'_'+str(Sphere[1])+'_'+key
-                    self.eMesh(Sphere[0].M[key],name,0)
+        ##### for spheres #####
+        for Spheres,i in zip(self.REV.Spheres,range(len(self.REV.Spheres))):
+            for key in Spheres[0].keys:
+                if Spheres[0].M[key] != [] :
+                    name = 'cercle'+'_'+str(Spheres[1])+'_'+key
+                    self.eMesh(Spheres[0].M[key],name,0)
 
         self.CylsForSnappy()
         self.eMeshForSnappy()
@@ -517,24 +518,24 @@ class Analyse_Parametrique():
         for Cyl,i in zip(self.REV.Cyls,range(len(self.REV.Cyls))):
             name = Cyl[1]
             Cyl = Cyl[0]
-            cylforsnap.append("air_to_sphere"+str(name))
+            cylforsnap.append("air_to_spheres"+str(name))
             cylforsnap.append("{")
             cylforsnap.append('\ttype searchableCylinder;')
             cylforsnap.append("\tpoint1 ("+ str(Cyl.p1[0])+" "+str(Cyl.p1[1])+" "+str(Cyl.p1[2])+");")
             cylforsnap.append("\tpoint2 ("+str(Cyl.p2[0])+" "+str(Cyl.p2[1])+" "+str(Cyl.p2[2])+ ");")
             cylforsnap.append ("\tradius "+ str(Cyl.r)+";")
-            cylforsnap.append("\tname air_to_sphere"+str(name)+";")
+            cylforsnap.append("\tname air_to_spheres"+str(name)+";")
             cylforsnap.append("}\n") 
  
-        for Sphere,i in zip(self.REV.Spheres,range(len(self.REV.Spheres))):
-            name = Sphere[1]
-            Sphere = Sphere[0]
-            cylforsnap.append("air_to_sphere"+str(name))
+        for Spheres,i in zip(self.REV.Spheres,range(len(self.REV.Spheres))):
+            name = Spheres[1]
+            Spheres = Spheres[0]
+            cylforsnap.append("air_to_spheres"+str(name))
             cylforsnap.append("{")
-            cylforsnap.append('\ttype searchableSphere;')
-            cylforsnap.append("\tcentre ("+ str(Sphere.OP[0])+" "+str(Sphere.OP[1])+" "+str(Sphere.OP[2])+");")
-            cylforsnap.append ("\tradius "+ str(Sphere.r)+";")
-            cylforsnap.append("\tname air_to_sphere"+str(name)+";")
+            cylforsnap.append('\ttype searchableSpheres;')
+            cylforsnap.append("\tcentre ("+ str(Spheres.OP[0])+" "+str(Spheres.OP[1])+" "+str(Spheres.OP[2])+");")
+            cylforsnap.append ("\tradius "+ str(Spheres.r)+";")
+            cylforsnap.append("\tname air_to_spheres"+str(name)+";")
             cylforsnap.append("}\n") 
         np.savetxt('system/cylforsnap',cylforsnap, fmt='%s',delimiter=" ")
 
@@ -544,7 +545,7 @@ class Analyse_Parametrique():
         nameP1 = open('patch_list.txt','r').readlines()
         if self.mPatchs == 1:
             for i in range(self.REV.noc):
-                names = [name.rstrip("\n") for name in nameP1 if name.split('_')[2].rstrip("\n") =='sphere'+str(i)]
+                names = [name.rstrip("\n") for name in nameP1 if name.split('_')[2].rstrip("\n") =='spheres'+str(i)]
                 name = ''
                 for n in names:
                     name = name +' '+n
@@ -556,7 +557,7 @@ class Analyse_Parametrique():
                 patch.append('\t}')
                 patch.append('\tconstructFrom patches;')
                 patch.append('\tpatches ('+name+');')
-                # patch.append('\tpatches (air_to_sphere'+str(i)+'.*);')
+                # patch.append('\tpatches (air_to_spheres'+str(i)+'.*);')
                 patch.append('}')                          
         np.savetxt('system/patch',patch, fmt='%s',delimiter=" ")
 
@@ -567,7 +568,7 @@ class Analyse_Parametrique():
         #creating the list for the true Cyl no yet merged
         Ids  = [name[17:] for name in names]
         self.REV.VeryRealCyl = [Cyl for Cyl in self.REV.Cyls if Cyl[1] in Ids]
-        self.REV.VeryRealSphere = [Sphere for Sphere in self.REV.Spheres if Sphere[1] in Ids]
+        self.REV.VeryRealSpheres = [Spheres for Spheres in self.REV.Spheres if Spheres[1] in Ids]
 
         if self.mPatchs == 0:
             for Cyl,i,name in zip(self.REV.VeryRealCyl,range(len(self.REV.VeryRealCyl)),names):
@@ -590,8 +591,8 @@ class Analyse_Parametrique():
                 if Cyl[0].pts['Ixb']['X'] != []:
                     self.forces.append('\tpRef           $jump;')             
                 self.forces.append('}')                      
-            for Sphere,i,name in zip(self.REV.VeryRealSphere,range(len(self.REV.VeryRealSphere)),names):
-                self.forces.append('forces_'+Sphere[1])
+            for Spheres,i,name in zip(self.REV.VeryRealSpheres,range(len(self.REV.VeryRealSpheres)),names):
+                self.forces.append('forces_'+Spheres[1])
                 self.forces.append('{')
                 self.forces.append('\ttype            forces;')
                 self.forces.append('\tlibs            (forces);')
@@ -605,9 +606,9 @@ class Analyse_Parametrique():
                 self.forces.append('\tU              '+U+';')                        
                 self.forces.append('\tlog             true;')                        
                 self.forces.append('\trho             rhoInf;')  
-                self.forces.append('\tCofR            ('+str(Sphere[0].OP[0])+" "+str(Sphere[0].OP[1])+" "+str(Sphere[0].OP[2])+');')                        
+                self.forces.append('\tCofR            ('+str(Spheres[0].OP[0])+" "+str(Spheres[0].OP[1])+" "+str(Spheres[0].OP[2])+');')                        
                 self.forces.append('\trhoInf          $Rho;')       
-                if Sphere[0].pts['Ixb']['X'] != []:
+                if Spheres[0].pts['Ixb']['X'] != []:
                     self.forces.append('\tpRef           $jump;')             
                 self.forces.append('}')                      
           
