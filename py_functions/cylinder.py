@@ -274,12 +274,12 @@ class Cylinder():
         self.M = {}
         X,Y,Z = list(),list(),list()
         for key in self.keys:
-            self.M[key] = zip(self.pts[key]['X'],self.pts[key]['Y'],self.pts[key]['Z'])
+            self.M[key] = list(zip(self.pts[key]['X'],self.pts[key]['Y'],self.pts[key]['Z']))
 
     def rearrangeList(self):
         for key in self.keys:
             index = []
-            if len(self.M[key]) > 3:
+            if len(list(self.M[key])) > 3:
                 dist1  =  np.array(self.M[key][0]) -np.array(self.M[key][1]) 
                 dist2  =  np.array(self.M[key][1]) -np.array(self.M[key][2]) 
                 dist = min(LA.norm(dist1,2),LA.norm(dist2,2))
@@ -341,13 +341,13 @@ class Cylinder():
                     #define a local planar basis :
                     self.e_perp = np.cross(self.e1,self.normal)
                     #define verticis in the 2D geometry
-                    self.Pts = range(4)
+                    self.Pts = list(range(4))
                     self.Pts[0] =np.array([  self.r+self.gap/2., - (self.length/2+self.gap/2.)])
                     self.Pts[1] =np.array([  self.r+self.gap/2.,   self.length/2+self.gap/2.])
                     self.Pts[2] =np.array([- (self.r+self.gap/2.), +  self.length/2+self.gap/2.])
                     self.Pts[3] =np.array([- (self.r+self.gap/2.), -  (self.length/2+self.gap/2.)])
                     #define segment
-                    self.Seg = range(4)
+                    self.Seg = list(range(4))
                     self.Seg[0] = self.Pts[1] - self.Pts[0]
                     self.Seg[1] = self.Pts[2] - self.Pts[1]
                     self.Seg[2] = self.Pts[3] - self.Pts[2]
@@ -361,7 +361,7 @@ class Cylinder():
                     other.bl_GB = - (other.r+self.gap) * other.e_perp - (other.length/2+self.gap) * other.e1
 
                     #Project on the local basis
-                    other.Pts = range(4)
+                    other.Pts = list(range(4))
                     other.Pts[0] =np.array([np.dot(other.br_GB,self.e_perp), np.dot(other.br_GB,self.e1)])
                     other.Pts[1] =np.array([np.dot(other.tr_GB,self.e_perp), np.dot(other.tr_GB,self.e1)])
                     other.Pts[2] =np.array([np.dot(other.tl_GB,self.e_perp), np.dot(other.tl_GB,self.e1)])
@@ -380,17 +380,17 @@ class Cylinder():
 
                     self.otherPts = other.Pts
 
-                    other.Seg = range(4)
+                    other.Seg = list(range(4))
                     other.Seg[0] = other.Pts[1] - other.Pts[0]
                     other.Seg[1] = other.Pts[2] - other.Pts[1]
                     other.Seg[2] = other.Pts[3] - other.Pts[2]
                     other.Seg[3] = other.Pts[0] - other.Pts[3]
                     # Verification de l intersection des droites
-                    for i in range(4):
+                    for i in list(range(4)):
                         A = self.Pts[i]
                         B = self.Pts[(i+1)%4]
                         AB = B - A
-                        for j in range(4):
+                        for j in list(range(4)):
                             C = other.Pts[j]
                             D = other.Pts[(j+1)%4]
                             CD = D - C

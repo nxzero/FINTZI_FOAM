@@ -42,8 +42,6 @@ class Six_pack():
         self.CylsMod = set()
         self.CylNoMod = set()
         self.addPerio   =1
-        self.Rmin = 0.95
-        self.Rmax = 1.01
 
     def run(self):        
         self.print_parameters()
@@ -148,19 +146,19 @@ class Six_pack():
     
     def print_parameters(self):
         if self.shape == 'Cyls':
-            print "radius=",self.rmean
-            print "length=",self.lengthmean
-            print "size=",self.sizex,self.sizey,self.sizez
-            print "number of cylinders=",self.noc 
-            print "gap between them=",self.gap 
-            print "Orientation tensor=",self.T
-            print "gap between planes and cyls=",self.gapbetweenplanes
+            print( "radius=",self.rmean)
+            print( "length=",self.lengthmean)
+            print( "size=",self.sizex,self.sizey,self.sizez)
+            print( "number of cylinders=",self.noc )
+            print( "gap between them=",self.gap )
+            print( "Orientation tensor=",self.T)
+            print( "gap between planes and cyls=",self.gapbetweenplanes)
         elif self.shape == 'Sphere':
-            print "radius=",self.rmean
-            print "size=",self.sizex,self.sizey,self.sizez
-            print "number of sphere=",self.noc 
-            print "gap between them=",self.gap 
-            print "gap between planes and cyls=",self.gapbetweenplanes
+            print( "radius=",self.rmean)
+            print( "size=",self.sizex,self.sizey,self.sizez)
+            print( "number of sphere=",self.noc )
+            print( "gap between them=",self.gap )
+            print( "gap between planes and cyls=",self.gapbetweenplanes)
 
     def generation(self):
         # self.Cyls = []
@@ -199,7 +197,7 @@ class Six_pack():
                     CylPerio.colisionCheck(Cylstemp)
                     if CylPerio.notok == 1:
                         Cyl.notok = 1
-                        print Cyl.notok
+                        print( Cyl.notok)
                         break
                 if Cyl.notok == 0:
                     self.Cyls.append([Cyl,str(idcyl)])
@@ -236,7 +234,7 @@ class Six_pack():
                     SpherePerio.colisionCheck(Spherestemp)
                     if SpherePerio.notok == 1:
                         Sphere.notok = 1
-                        print Sphere.notok
+                        print(Sphere.notok)
                         break
                 if Sphere.notok == 0:
                     self.Spheres.append([Sphere,str(idSphere)])
@@ -253,7 +251,7 @@ class Six_pack():
                     print(Sphere, Sphere.OP,len(self.Spheres),idSphere)
     #fonction a utiliser manuellement si besoin
     def AddselfPerios(self):
-        print self.sizex,self.sizey,self.sizez
+        print(self.sizex,self.sizey,self.sizez)
         for Cyl in self.Cyls[:]:
             idcyl = Cyl[1]
             Cyl = Cyl[0]
@@ -364,7 +362,7 @@ class Six_pack():
                     self.pRef = np.array([self.sizex - 1e-5,randp[1],randp[2]])
 
             print('Matiere= ', self.Matiere)
-    	    print('PRef = ', self.pRef)
+            print('PRef = ', self.pRef)
 
     def IsItTangent(self,minA,minB):
         """The goal is to shift all cylinders if one is tangent to the sides"""
@@ -455,6 +453,7 @@ class Six_pack():
                 
             return 0
         if self.shape == 'Sphere':
+            """The goal is to shift all cylinders if one is tangent to the sides"""
             for Sphere in self.Spheres:
                 idSphere = Sphere[1]
                 Sphere = Sphere[0]
@@ -462,7 +461,7 @@ class Six_pack():
                     if key not in ['Ixt','Iyt','Izt']:
                         continue
                     self.ItIsTooTangent = 0 
-                    if key in Sphere.plansKeys:
+                    if Sphere.pts[key]['X'] != [] :
                         n = Sphere.plans[key][0]
                         Ip = Sphere.plans[key][1]
                         # distance to the plan :
@@ -470,7 +469,7 @@ class Six_pack():
                         # distance normal
                         Dist1 = np.dot(Dist1,n)
                         # Angle d inclinaison par rapport au plan 
-                        if abs(Dist1) >= Sphere.r*self.Rmin and abs(Dist1) <= Sphere.r*self.Rmax:
+                        if abs(Dist1) >= Sphere.r*0.85 and abs(Dist1) <= Sphere.r*1.01:
                             self.ItIsTooTangent = 1
                         if self.ItIsTooTangent == 1:
                             print( 'The Sphere ',idSphere,'is tangent to the',key,'plan')
@@ -624,7 +623,7 @@ class Six_pack():
                         if abs(distA) > 0.8*Cyl.r and abs(distA) < 1.1*Cyl.r and dist3 < Cyl.L:
                             print('Cylinder :',idcyl,'too colse from an edges',abs(distA),'dist3',dist3)
                             self.Shift =  0.1*Cyl.r * nA
-                            print nA
+                            print( nA)
                             self.Cylten = Cyl
                             return 1
             return 0 
@@ -649,7 +648,7 @@ class Six_pack():
                         if abs(dist3) > 0.9*Sphere.r and abs(dist3) < 1.1*Sphere.r:
                             print('Sphere :',idSphere,'too colse from an edges dist = ',dist)
                             self.Shift =  0.1*Sphere.r * nplan
-                            print nplan
+                            print( nplan)
                             self.Cylten = Sphere
                             return 1
             return 0 
@@ -826,10 +825,10 @@ class Six_pack():
                 
                 pp += np.outer(self.Cyls[index][0].e1,self.Cyls[index][0].e1)
             self.OT = pp/len(Ids2)
-            print ('volume fraction  :', self.phi)
-            print 'Orientation tensor ===>'
-            print '   '
-            print self.OT
+            print('volume fraction  :', self.phi)
+            print( 'Orientation tensor ===>')
+            print( '   ')
+            print( self.OT)
 
 
 

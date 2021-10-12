@@ -18,14 +18,12 @@ class triStudy(Study):
         self.DISTC = {}
         self.Turb = {}
         self.Dp = {}
-        self.Dps = []
         self.OT = {}
         self.cylsDeleted = []
-        self.Fds = []
     def get_studies_last_step(self,name):
         self.dircase = self.namedir+str(name)
         
-        sys.path.insert(1,'./'+self.dircase+'/')
+        sys.path.append('./'+self.dircase+'/')
         import Cyls_for_this_study as cylsStud
         import importlib
         reload(cylsStud)
@@ -81,11 +79,7 @@ class triStudy(Study):
             self.distribution_theta(name)
             self.average_theta(name)
             self.standard_deviation_theta(name)
-            self.makelist(name)
 
-    def makelist(self,name):
-        self.Dps.append(self.Dp[name])
-        self.Fds.append(self.SUM[name].AVG.F_ad[0])
     def calcul_sum(self,name):
         self.SUM[name] = Study(self.namestud)
         self.SUM[name].name = name
@@ -130,7 +124,6 @@ class triStudy(Study):
         self.AVG[name] = {}
         self.AVG[name]['ranges'] = np.linspace(0,90,self.frequency)
         self.AVG[name]['Theta'] = list()
-        THETAS = []
         i = 0
         for theta_min,theta_max in zip(self.AVG[name]['ranges'][:-1],self.AVG[name]['ranges'][1:]):
             self.AVG[name]['Theta'].append(Study(self.namestud))
@@ -140,14 +133,12 @@ class triStudy(Study):
             for cyl in self.Cyls[name]:
                 theta = cyl.studies_datas[name]['parameters']['Theta']
                 if theta <= theta_max and theta > theta_min:
-                    THETAS.append(theta)
                     self.AVG[name]['Theta'][i].addall(cyl)
             self.AVG[name]['Theta'][i].divall(self.DIST[name]['Theta'][i])
             self.AVG[name]['Theta'][i].initlist()
             self.AVG[name]['Theta'][i].makelist(name)
             i += 1
-        AVGTHETA = sum(THETAS)/len(THETAS)
-        self.AVG[name]['THETA'] = AVGTHETA
+        
         self.AVG[name]['ranges'] = self.AVG[name]['ranges'][:-1] + abs(theta_min-theta_max)/2
 
 
