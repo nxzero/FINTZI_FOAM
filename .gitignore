@@ -12,5 +12,5 @@ _deps
 
 
 *.pyc
-
+__pycache__/
 .vscode/

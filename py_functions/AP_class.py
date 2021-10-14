@@ -114,14 +114,14 @@ class Analyse_Parametrique():
             self.run_NM()
 
     def run_RM(self):
-        """this is the run function it run every other function and loop thought it"""
+        """this is the run function it run every other function and loop thought it redoing every steps"""
         for P  in self.parameters_list:
             self.set_parameters_dictionnary(P)
             self.refinement_if_needed(P)
             print(self.para_name+' = '+str(self.parameters[self.para_name]))
+            os.system(self.bashDir+'Allclean')
             self.eMeshGenerator()
             self.print_parameters_for_OF()
-            os.system(self.bashDir+'Allclean')
             os.system(self.bashDir+'Allrun '+str(self.whichMesh))
             self.cp_dir_and_files(P)
             self.parameters_for_Studies()
@@ -132,20 +132,20 @@ class Analyse_Parametrique():
         self.set_parameters_dictionnary(P)
         self.refinement_if_needed(P)
         print(self.para_name+' = '+str(self.parameters[self.para_name]))
+        os.system(self.bashDir+'Allclean')
         self.eMeshGenerator()
         self.print_parameters_for_OF()
-        os.system(self.bashDir+'Allclean')
         os.system(self.bashDir+'RunMeshOnly ' + str(self.whichMesh))
         for P  in self.parameters_list:
             self.set_parameters_dictionnary(P)
             print(self.para_name+' = '+str(self.parameters[self.para_name]))
             self.print_parameters_for_OF()
             os.system(self.bashDir+'AllrunExceptTheMesh')
-            self.mv_dir_and_files(P)
+            self.cp_dir_and_files(P)
             self.parameters_for_Studies()
 
     def run_FAOC(self):
-        '''That function will run an old cases'''
+        '''That function will run an old cases with new parameters'''
         os.system(self.bashDir+'Allclean')
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir)
@@ -428,7 +428,7 @@ class Analyse_Parametrique():
             M_x = [Ocyl[0]+l/2*math.cos(t)-self.parameters['r']*math.cos(g)*math.sin(t)for g in gamma]
             M_y = [Ocyl[1]+l/2*math.sin(t)+self.parameters['r']*math.cos(g)*math.cos(t) for g in gamma]
             M_z = [Ocyl[2] + self.parameters['r']*math.sin(g) for g in gamma]
-            M = zip(M_x,M_y,M_z)
+            M = list(zip(M_x,M_y,M_z))
             name="cercle"+str(numero_du_cercle)
             self.eMesh(M,name,1)
         self.eMeshForSnappy()
@@ -495,6 +495,7 @@ class Analyse_Parametrique():
         eMesh.append(')')
         eMesh.append("// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //"+"\n")
         eMesh.append("// ************************************************************************* //")
+        print('im saving the stuff')
         np.savetxt('constant/triSurface/'+name+'.eMesh',eMesh, fmt='%s',delimiter=" ")
 
     def eMeshForSnappy(self):
