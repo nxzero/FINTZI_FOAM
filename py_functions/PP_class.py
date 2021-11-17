@@ -15,7 +15,7 @@ class Study():
         self.namedir = '../results/'+namestud+'/'
         sys.path.append('./'+self.namedir)
         import parameters_for_this_study as pstud
-        import importlib
+        from importlib import reload
         reload(pstud)
         self.parameters = pstud.parameters
         sys.path.remove('./'+self.namedir)
@@ -31,48 +31,48 @@ class Study():
         self.parameters_list = [float(name) for name in self.names]
         self.name = ''
         self.ori = np.array([6,6,6])
-        # self.get_all_the_datas()
-        self.Forces = {
-            'total' : {
-                'x' : 0,
-                'y' : 0,
-                'z' : 0
-            },
-            'pressure' :{
-                'x' : 0,
-                'y' : 0,
-                'z' : 0
-            },
-            'viscous':{
-                'x' : 0,
-                'y' : 0,
-                'z' : 0
-            }
-        }
-        self.Torques = {
-            'total' : {
-                'x' : 0,
-                'y' : 0,
-                'z' : 0
-            },
-            'pressure' :{
-                'x' : 0,
-                'y' : 0,
-                'z' : 0
-            },
-            'viscous':{
-                'x' : 0,
-                'y' : 0,
-                'z' : 0
-            }
-        }
-        self.studies_datas[name] = {
-            'Forces' : self.Forces,
-            'Torques' : self.Torques,
-            'parameters' : self.parameters,
-            'para_value' : float(name),
-            'namedir':self.namedir
-        }        
+        # self.get_forces_and_troques()
+        # self.Forces = {
+        #     'total' : {
+        #         'x' : 0,
+        #         'y' : 0,
+        #         'z' : 0
+        #     },
+        #     'pressure' :{
+        #         'x' : 0,
+        #         'y' : 0,
+        #         'z' : 0
+        #     },
+        #     'viscous':{
+        #         'x' : 0,
+        #         'y' : 0,
+        #         'z' : 0
+        #     }
+        # }
+        # self.Torques = {
+        #     'total' : {
+        #         'x' : 0,
+        #         'y' : 0,
+        #         'z' : 0
+        #     },
+        #     'pressure' :{
+        #         'x' : 0,
+        #         'y' : 0,
+        #         'z' : 0
+        #     },
+        #     'viscous':{
+        #         'x' : 0,
+        #         'y' : 0,
+        #         'z' : 0
+        #     }
+        # }
+        # self.studies_datas[name] = {
+        #     'Forces' : self.Forces,
+        #     'Torques' : self.Torques,
+        #     'parameters' : self.parameters,
+        #     'para_value' : float(name),
+        #     'namedir':self.namedir
+        # }        
     
 
     def get_all_the_datas(self):
@@ -325,10 +325,10 @@ class Study():
         # if float(name) == 0:
         self.parameters_list.append(self.studies_datas[name]['para_value'])
         for key in self.studies_datas[name]['Torques']:
-            for key2,value2 in self.studies_datas[name]['Torques'][key].iteritems():
+            for key2,value2 in self.studies_datas[name]['Torques'][key].items():
                 self.Torques[key][key2].append(value2)
         for key in self.studies_datas[name]['Forces']:
-            for key2,value2 in self.studies_datas[name]['Forces'][key].iteritems():
+            for key2,value2 in self.studies_datas[name]['Forces'][key].items():
                 self.Forces[key][key2].append(value2)
         self.F_ad.append(self.studies_datas[name]['F_ad'])
         self.F_h.append(self.studies_datas[name]['F_h'])
