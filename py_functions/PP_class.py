@@ -8,71 +8,34 @@ import re
 import numpy as np
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
+import moment_Cox as mc
 class Study():
     def __init__(self,namestud):
     # def Postprocess(self, namedir):
         self.namestud = namestud
-        self.namedir = '../results/'+namestud+'/'
-        sys.path.append('./'+self.namedir)
-        import parameters_for_this_study as pstud
-        from importlib import reload
-        reload(pstud)
-        self.parameters = pstud.parameters
-        sys.path.remove('./'+self.namedir)
-        self.maindir = 'forces'
-        self.studies_datas = {}
-        self.para_name = self.parameters['para_name']
-        self.namesOrig = os.listdir(self.namedir)
-        self.names = os.listdir(self.namedir)
-        self.names = filter(lambda x : x!='' and x !='.'  , [re.sub("[^0123456789\.]","",dir) for dir in self.names])
-        self.names =[dire for dire in self.names if dire in os.listdir(self.namedir)]
-        self.names = [dir for dir in set(self.names) if dir in self.namesOrig]
-        self.names.sort(key = lambda x : float(x)) #sort par ordre croissant
-        self.parameters_list = [float(name) for name in self.names]
-        self.name = ''
-        self.ori = np.array([6,6,6])
-        # self.get_forces_and_troques()
-        # self.Forces = {
-        #     'total' : {
-        #         'x' : 0,
-        #         'y' : 0,
-        #         'z' : 0
-        #     },
-        #     'pressure' :{
-        #         'x' : 0,
-        #         'y' : 0,
-        #         'z' : 0
-        #     },
-        #     'viscous':{
-        #         'x' : 0,
-        #         'y' : 0,
-        #         'z' : 0
-        #     }
-        # }
-        # self.Torques = {
-        #     'total' : {
-        #         'x' : 0,
-        #         'y' : 0,
-        #         'z' : 0
-        #     },
-        #     'pressure' :{
-        #         'x' : 0,
-        #         'y' : 0,
-        #         'z' : 0
-        #     },
-        #     'viscous':{
-        #         'x' : 0,
-        #         'y' : 0,
-        #         'z' : 0
-        #     }
-        # }
-        # self.studies_datas[name] = {
-        #     'Forces' : self.Forces,
-        #     'Torques' : self.Torques,
-        #     'parameters' : self.parameters,
-        #     'para_value' : float(name),
-        #     'namedir':self.namedir
-        # }        
+        if not namestud == '':
+            self.namedir = '../results/'+namestud+'/'
+            sys.path.append('./'+self.namedir)
+            import parameters_for_this_study as pstud
+            from importlib import reload
+            reload(pstud)
+            self.parameters = pstud.parameters
+            sys.path.remove('./'+self.namedir)
+            self.maindir = 'forces'
+            self.studies_datas = {}
+            self.para_name = self.parameters['para_name']
+            self.namesOrig = os.listdir(self.namedir)
+            self.names = os.listdir(self.namedir)
+            self.names = filter(lambda x : x!='' and x !='.'  , [re.sub("[^0123456789\.]","",dir) for dir in self.names])
+            self.names =[dire for dire in self.names if dire in os.listdir(self.namedir)]
+            self.names = [dir for dir in set(self.names) if dir in self.namesOrig]
+            self.names.sort(key = lambda x : float(x)) #sort par ordre croissant
+            self.parameters_list = [float(name) for name in self.names]
+            self.name = ''
+            self.ori = np.array([6,6,6])
+        else:
+            self.names = []
+            self.initlist()
     
 
     def get_all_the_datas(self):
@@ -227,6 +190,27 @@ class Study():
             self.studies_datas[name]['M_had'] =  - self.studies_datas[name]['Torques']['total']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
         except:
             1
+
+        #relative error compared to the theory 
+
+
+        re = self.studies_datas[name]['Re']
+        ksi = self.studies_datas[name]['parameters']['ksi']
+        theta = self.studies_datas[name]['parameters']['Theta']
+        if theta == 0:
+            theta += 1e-3
+        if theta == 90:
+            theta -= 1e-3
+        self.studies_datas[name]['eF_d'] = np.abs(self.studies_datas[name]['F_d'] - mc.D2(re,ksi,theta))/self.studies_datas[name]['F_d']
+        self.studies_datas[name]['eF_l'] = (np.abs(self.studies_datas[name]['F_l']) - np.abs(mc.L2(re,ksi,theta)))/np.abs(self.studies_datas[name]['F_l'])
+        self.studies_datas[name]['eM_had'] = (np.abs(self.studies_datas[name]['M_had']) -np.abs( mc.T_CC(re,ksi,theta)))/np.abs(self.studies_datas[name]['M_had'])
+        # self.studies_datas[name]['eF_d'] = np.abs(self.studies_datas[name]['F_d'] - mc.D2(re,ksi,theta))/mc.D2(re,ksi,theta)
+        # self.studies_datas[name]['eF_l'] = np.abs(self.studies_datas[name]['F_l'] - mc.L2(re,ksi,theta))/mc.L2(re,ksi,theta)
+        # self.studies_datas[name]['eM_had'] = np.abs(self.studies_datas[name]['M_had'] - mc.T_CC(re,ksi,theta))/mc.T_CC(re,ksi,theta)
+        self.studies_datas[name]['Re_L'] = re*ksi/2
+
+
+        # For tri priodic cases
         if self.ori[0] != 6:
             self.calcul_for_tripp(name)
 
@@ -303,11 +287,14 @@ class Study():
         self.F_d2perp = []
         self.F_perp = []
         self.M_had = []
+        self.eM_had = []
         self.M_had_PW = []
         self.fx = []
         self.F_d = []
+        self.eF_d = []
         self.F_d_PW = []
         self.F_l = []
+        self.eF_l = []
         self.F_l_PW = []
         self.F_dd = []
         self.F_dd_PW = []
@@ -320,6 +307,7 @@ class Study():
         self.M_x = []
         self.M_y = []
         self.M_z = []
+        self.Re_L = []
 
     def makelist(self,name):
         # if float(name) == 0:
@@ -342,11 +330,14 @@ class Study():
         self.F_d2perp.append(self.studies_datas[name]['F_d2perp'])
         self.F_perp.append(self.studies_datas[name]['F_perp'])
         self.M_had.append(self.studies_datas[name]['M_had'])
+        self.eM_had.append(self.studies_datas[name]['eM_had'])
         self.M_had_PW.append(self.studies_datas[name]['M_had_PW'])
         self.fx.append(self.studies_datas[name]['fx'])
         self.F_d.append(self.studies_datas[name]['F_d'])
+        self.eF_d.append(self.studies_datas[name]['eF_d'])
         self.F_d_PW.append(self.studies_datas[name]['F_d_PW'])
         self.F_l.append(self.studies_datas[name]['F_l'])
+        self.eF_l.append(self.studies_datas[name]['eF_l'])
         self.F_l_PW.append(self.studies_datas[name]['F_l_PW'])
         self.F_dd.append(self.studies_datas[name]['F_dd'])
         self.F_dd_PW.append(self.studies_datas[name]['F_dd_PW'])
@@ -360,6 +351,7 @@ class Study():
         self.M_x.append(self.studies_datas[name]['M_x'])
         self.M_y.append(self.studies_datas[name]['M_y'])
         self.M_z.append(self.studies_datas[name]['M_z'])
+        self.Re_L.append(self.studies_datas[name]['Re_L'])
 
     def get_convergences_datas(self):
         import re
@@ -572,6 +564,7 @@ class Study():
                 self.studies_datas[self.name][key] += other.studies_datas[self.name][key]
 
         return self
+
     def suball(self, other):
         for key in self.studies_datas[self.name]['Torques']:
             for key2 in self.studies_datas[self.name]['Torques'][key]:
@@ -585,3 +578,5 @@ class Study():
                 self.studies_datas[self.name][key] -= other.studies_datas[self.name][key]
 
         return self
+
+    
