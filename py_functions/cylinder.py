@@ -1,7 +1,6 @@
 import AP_class
 import math
 import numpy as np
-import scipy as sp
 from numpy import linalg as LA
 from numpy.linalg import inv
 

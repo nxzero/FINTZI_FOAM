@@ -1,7 +1,6 @@
 import AP_class
 import math
 import numpy as np
-import scipy as sp
 from numpy import linalg as LA
 from cylinder import *
 from sphere import *
@@ -905,7 +904,6 @@ class Six_pack():
 # from mpl_toolkits.mplot3d import Axes3D
 
 # import numpy as np
-# import scipy as sp
 # from scipy.optimize import curve_fit
 # import matplotlib.pyplot as plt
 # import scipy.special as sc
