@@ -495,7 +495,6 @@ class Analyse_Parametrique():
         eMesh.append(')')
         eMesh.append("// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //"+"\n")
         eMesh.append("// ************************************************************************* //")
-        print('im saving the stuff')
         np.savetxt('constant/triSurface/'+name+'.eMesh',eMesh, fmt='%s',delimiter=" ")
 
     def eMeshForSnappy(self):
