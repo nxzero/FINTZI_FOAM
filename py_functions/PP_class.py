@@ -10,9 +10,10 @@ from numpy import linalg as LA
 import matplotlib.pyplot as plt
 import moment_Cox as mc
 class Study():
-    def __init__(self,namestud):
+    def __init__(self,namestud,forcestopbot = False,maindir='forces'):
     # def Postprocess(self, namedir):
         self.namestud = namestud
+        self.forcestopbot = forcestopbot
         if not namestud == '':
             self.namedir = '../results/'+namestud+'/'
             sys.path.append('./'+self.namedir)
@@ -21,7 +22,7 @@ class Study():
             reload(pstud)
             self.parameters = pstud.parameters
             sys.path.remove('./'+self.namedir)
-            self.maindir = 'forces'
+            self.maindir = maindir
             self.studies_datas = {}
             self.para_name = self.parameters['para_name']
             self.namesOrig = os.listdir(self.namedir)

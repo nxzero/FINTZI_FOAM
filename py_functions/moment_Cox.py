@@ -6,13 +6,11 @@ import math
 gamma = 0.5772156649
 
 def T_simple(Re,Chi,Theta):
-    import math
     Theta = np.array(Theta) /360 * 2*math.pi
     T = 5.*math.pi/12. *Chi*Re / np.log(Chi)**2 * np.sin(2*Theta)
     return T
 
 def T_ad(Re,Chi,Theta):
-    import math
     Theta = np.array(Theta) /360 * 2*math.pi
     Re = np.array(Re)
     Chi = np.array(Chi)
@@ -29,7 +27,6 @@ def Cg(X):
     return (sc.expn(1,X)+np.log(X)+gamma)/X
 
 def F_g(ReL,Theta):
-    import math
     Theta = np.array(Theta)
     Theta = Theta /360. * 2.*math.pi
     X =ReL*(1.-np.cos(Theta))
@@ -38,7 +35,6 @@ def F_g(ReL,Theta):
     return (np.cos(Theta) * B + Zg(Y) - Zg(X)) * np.sin(Theta)
 
 def T_CC(Re,Chi,Theta) :
-    import math
     Re = np.array(Re)
     Chi = np.array(Chi)
     ReL = Re * Chi / 2.
@@ -56,7 +52,6 @@ def T_CC_myfit(Re,Chi,Theta):#
     except:
         1
     C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12 = 0.64322646,   0.34011955,  -0.12984728,  30.        ,-0.7       ,   0.5,   0., 0. , 0.,   3.,   1.,   1.5  
-    import math
     Theta = np.array(Theta) /360 * 2*math.pi
     Re = np.array(Re)
     Chi = np.array(Chi)
@@ -75,7 +70,6 @@ def T_CC_myfit(Re,Chi,Theta):#
 ### Forces Cox ###########################################
 
 def F_90_const(X,C1,C2,C3,C4,C6,C7,C9,C10,C11,C12):
-    import math
     Re,Chi = X
     f_perp =sc.expn(1,Re*Chi/2)+np.log(Re*Chi/2)-(np.exp(-Re*Chi/2)-1.)/(Re*Chi/2)+gamma-1./2-np.log(4)
     my_coef  = (1-np.exp(C1*(Chi-C2)))
@@ -88,8 +82,9 @@ def F_90(Re,Chi):
     p0 = np.array([ -1.22840432e+01,   1.93973798e+00,   3.49519674e+01,2.44794412e+01,   1.01967917e+00,  -3.29851411e-02,3.00000000e+00,   1.00000000e+00,   1.52080416e+00,1.03427954e+00])
     return F_90_const((Re,Chi),*p0)
 
+
+
 def F_0_KC(Re,Chi):
-    import math
     Re = np.array(Re)
     Chi = np.array(Chi)
     f_A = (sc.expn(1,Chi*Re) + np.log(Chi*Re) - np.exp(-Chi*Re) + 1 +gamma)/(Chi*Re)
@@ -97,11 +92,49 @@ def F_0_KC(Re,Chi):
     f_para = 1./2. * (f_A + f_B)
     A = 1./np.log(Chi)
     B = (0.80685 + f_para -np.log(2.))* 1./np.log(Chi)**2
-    F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B)-1.4/(Chi-0.5)**1.75
+    F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B)#-1.4/(Chi-0.5)**1.75
     return F_para2
+
+
+def F2A(Re,Chi):
+    ReL=Re*Chi/2
+    return 0.0869545 * ReL
+def F2B(Re,Chi):
+    ReL=Re*Chi/2
+    return -10**(-1.41392 + 0.508603 *np.log(ReL) - 0.0396166* np.log(ReL)**2)
+def F2C():
+    return 0.82854 + np.log(2)**2-0.80685*np.log(2)*2
+
+# exp en ln Chi
+def F_0_KC3(Re,Chi):
+    Re = np.array(Re)
+    Chi = np.array(Chi)
+    f_A = (sc.expn(1,Chi*Re) + np.log(Chi*Re) - np.exp(-Chi*Re) + 1 +gamma)/(Chi*Re)
+    f_B = sc.expn(1,Chi*Re) + np.log(Chi*Re) + gamma -2.
+    f_para = 1./2. * (f_A + f_B)
+    A = 1./np.log(Chi)
+    B = (0.80685 + f_para -np.log(2.))* 1./np.log(Chi)**2
+    C = (F2A(Re,Chi)+F2B(Re,Chi)+F2C())* 1./np.log(Chi)**3
+    F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B+C)#-1.4/(Chi-0.5)**1.75
+    return F_para2
+
+# exp en ln 2*Chi
+def F_0_KC3_2C(Re,Chi):
+    Re = np.array(Re)
+    Chi = np.array(Chi)
+    f_A = (sc.expn(1,Chi*Re) + np.log(Chi*Re) - np.exp(-Chi*Re) + 1 +gamma)/(Chi*Re)
+    f_B = sc.expn(1,Chi*Re) + np.log(Chi*Re) + gamma -2.
+    f_para = 1./2. * (f_A + f_B)
+    A = 1./np.log(2*Chi)
+    B = (0.80685 + f_para)* 1./np.log(2*Chi)**2
+    C = (F2A(Re,Chi)+F2B(Re,Chi)  +0.82854 +f_para*np.log(4) )* 1./np.log(2*Chi)**3
+    F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B+C)#-1.4/(Chi-0.5)**1.75
+    return F_para2
+
+
+
     
 def F_0(Re,Chi):
-    import math
     Re = np.array(Re)
     Chi = np.array(Chi)
     f_A = (sc.expn(1,Chi*Re) + np.log(Chi*Re) - np.exp(-Chi*Re) + 1 +gamma)/(Chi*Re)
@@ -116,8 +149,25 @@ def F_0(Re,Chi):
     F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B+C+D)-1.4/(Chi-0.5)**1.75
     return F_para2
 
+
+
+# def F_0_myfit(Re,Chi):
+#     C1,C2,C3,C4,C5,C6 = 0.23906317, -0.02625534,  0.35945921, -0.17541541,  2.17545436,-1.58283729
+#     Re = np.array(Re)
+#     Chi = np.array(Chi)
+#     f_A = (sc.expn(1,Chi*Re) + np.log(Chi*Re) - np.exp(-Chi*Re) + 1 +gamma)/(Chi*Re)
+#     f_B = sc.expn(1,Chi*Re) + np.log(Chi*Re) + gamma -2.
+#     f_para = 1./2. * (f_A + f_B)
+#     f_3 = C5*(Chi*Re)**(C1*Chi**C2)
+#     f_4 = C6*(Chi* Re)**(C3*Chi**C4)
+#     A = 1./np.log(2*Chi)
+#     B = (0.80685 + f_para )* 1./np.log(2*Chi)**2
+#     C = (0.82854 + f_para  *f_3 )* 1./np.log(2*Chi)**3
+#     D = (1.45243  + f_para * f_4)* 1./np.log(2*Chi)**4
+#     F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B+C+D)-1.4/(Chi-0.5)**1.75
+#     return F_para2
 def F_0_myfit(Re,Chi):
-    C1,C2,C3,C4,C5,C6 = 0.23906317, -0.02625534,  0.35945921, -0.17541541,  2.17545436,-1.58283729
+    C1,C2,C3,C4,C5,C6=0.43837489, -1.10687242,  0.69654984, -0.00993736, -4.53500291,0.7954064
     Re = np.array(Re)
     Chi = np.array(Chi)
     f_A = (sc.expn(1,Chi*Re) + np.log(Chi*Re) - np.exp(-Chi*Re) + 1 +gamma)/(Chi*Re)
@@ -127,14 +177,12 @@ def F_0_myfit(Re,Chi):
     f_4 = C6*(Chi* Re)**(C3*Chi**C4)
     A = 1./np.log(2*Chi)
     B = (0.80685 + f_para )* 1./np.log(2*Chi)**2
-    C = (0.82854 + f_para  *f_3 )* 1./np.log(2*Chi)**3
-    D = (1.45243  + f_para * f_4)* 1./np.log(2*Chi)**4
+    C = (0.82854 + F2A(Re,Chi)+F2B(Re,Chi) +2*f_para*np.log(2))* 1./np.log(2*Chi)**3
+    D = (1.45243  + 3*f_para*np.log(2)**2 * f_4  +3*np.log(2)* (F2A(Re,Chi)+F2B(Re,Chi)) * f_3 )* 1./np.log(2*Chi)**4
     F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B+C+D)-1.4/(Chi-0.5)**1.75
     return F_para2
-
-
+# sans inertie avec fit en Chi
 def F_0_modi(Chi):
-    import math
     Chi = np.array(Chi)
     f_3 = 1#(Chi*Re)**(0.07*Chi**0.5)
     f_4 = 1#(Chi* Re)**(0.03*Chi**0.9)
@@ -146,7 +194,6 @@ def F_0_modi(Chi):
     return F_para2
 
 def F_04th(Chi):
-    import math
     Chi = np.array(Chi)
     a_1 = 1
     a_2 = 0.80685

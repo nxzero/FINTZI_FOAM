@@ -18,6 +18,8 @@ runParallel snappyHexMesh -overwrite
 
 runApplication reconstructParMesh -constant
 rm -rf processor*
+runApplication topoSet
+runApplication createPatch -overwrite
 runApplication renumberMesh -overwrite
 
 # snappyHexMesh -overwrite
