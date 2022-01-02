@@ -82,7 +82,23 @@ def F_90(Re,Chi):
     p0 = np.array([ -1.22840432e+01,   1.93973798e+00,   3.49519674e+01,2.44794412e+01,   1.01967917e+00,  -3.29851411e-02,3.00000000e+00,   1.00000000e+00,   1.52080416e+00,1.03427954e+00])
     return F_90_const((Re,Chi),*p0)
 
+def F_90_chi(Chi):
+    Chi = np.array(Chi)
+    A = 1./np.log(2*Chi)
+    B = - 0.19315 /np.log(2*Chi)**2
+    C = 0.21484/np.log(2*Chi)**3
+    D = 0.38735 /np.log(2*Chi)**4
+    return 4./3*(Chi)/Chi**(1./3)*(2./3)**(1./3)*(A+B+C+D)
 
+def F_90_chifit(Chi):
+    Chi = np.array(Chi)
+    C1,C2 =3.25234363e-03, 3.86768653e+00
+    chicoef  = (1.- np.exp(-C1*Chi**C2))
+    A = 1./np.log(2*Chi)
+    B = - 0.19315 /np.log(2*Chi)**2
+    C = 0.21484/np.log(2*Chi)**3
+    D = 0.38735 /np.log(2*Chi)**4
+    return 4./3*(Chi)/Chi**(1./3)*(2./3)**(1./3)*(A+B+chicoef*(C+D))
 
 def F_0_KC(Re,Chi):
     Re = np.array(Re)
@@ -127,9 +143,11 @@ def F_0_KC3_2C(Re,Chi):
     f_para = 1./2. * (f_A + f_B)
     A = 1./np.log(2*Chi)
     B = (0.80685 + f_para)* 1./np.log(2*Chi)**2
-    C = (F2A(Re,Chi)+F2B(Re,Chi)  +0.82854 +f_para*np.log(4) )* 1./np.log(2*Chi)**3
-    F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B+C)#-1.4/(Chi-0.5)**1.75
+    C = (F2A(Re,Chi)+F2B(Re,Chi) +0.82854 +f_para*np.log(4) )* 1./np.log(2*Chi)**3
+    D = (1.45243) *1./np.log(2*Chi)**4
+    F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B+C+D)-1.4/(Chi-0.5)**1.75
     return F_para2
+    # (3*f_para*np.log(2)**2   +3*np.log(2)* (F2A(Re,Chi)+F2B(Re,Chi)))*
 
 
 
@@ -150,22 +168,6 @@ def F_0(Re,Chi):
     return F_para2
 
 
-
-# def F_0_myfit(Re,Chi):
-#     C1,C2,C3,C4,C5,C6 = 0.23906317, -0.02625534,  0.35945921, -0.17541541,  2.17545436,-1.58283729
-#     Re = np.array(Re)
-#     Chi = np.array(Chi)
-#     f_A = (sc.expn(1,Chi*Re) + np.log(Chi*Re) - np.exp(-Chi*Re) + 1 +gamma)/(Chi*Re)
-#     f_B = sc.expn(1,Chi*Re) + np.log(Chi*Re) + gamma -2.
-#     f_para = 1./2. * (f_A + f_B)
-#     f_3 = C5*(Chi*Re)**(C1*Chi**C2)
-#     f_4 = C6*(Chi* Re)**(C3*Chi**C4)
-#     A = 1./np.log(2*Chi)
-#     B = (0.80685 + f_para )* 1./np.log(2*Chi)**2
-#     C = (0.82854 + f_para  *f_3 )* 1./np.log(2*Chi)**3
-#     D = (1.45243  + f_para * f_4)* 1./np.log(2*Chi)**4
-#     F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B+C+D)-1.4/(Chi-0.5)**1.75
-#     return F_para2
 def F_0_myfit(Re,Chi):
     C1,C2,C3,C4,C5,C6=0.43837489, -1.10687242,  0.69654984, -0.00993736, -4.53500291,0.7954064
     Re = np.array(Re)
@@ -181,6 +183,7 @@ def F_0_myfit(Re,Chi):
     D = (1.45243  + 3*f_para*np.log(2)**2 * f_4  +3*np.log(2)* (F2A(Re,Chi)+F2B(Re,Chi)) * f_3 )* 1./np.log(2*Chi)**4
     F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B+C+D)-1.4/(Chi-0.5)**1.75
     return F_para2
+
 # sans inertie avec fit en Chi
 def F_0_modi(Chi):
     Chi = np.array(Chi)
@@ -193,6 +196,7 @@ def F_0_modi(Chi):
     F_para2 = 1./3*(Chi)**(2./3)*(16./3)**(1./3)*(A+B+C+D)-1.4/(Chi-0.5)**1.75
     return F_para2
 
+# 4th order sans correction 
 def F_04th(Chi):
     Chi = np.array(Chi)
     a_1 = 1
