@@ -1,9 +1,8 @@
-import AP_class
 import math
 import numpy as np
 
 from numpy import linalg as LA
-from cylinder import *
+from py_functions.cylinder import *
 
 class SphereObj(Cylinder):
     def __init__(self, pos,r):

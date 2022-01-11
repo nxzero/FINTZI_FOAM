@@ -1,9 +1,8 @@
-import AP_class
 import math
 import numpy as np
 from numpy import linalg as LA
-from cylinder import *
-from sphere import *
+from py_functions.cylinder import *
+from py_functions.sphere import *
 
 class Six_pack():
     def __init__(self):

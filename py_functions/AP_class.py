@@ -1,11 +1,12 @@
 import os
+HOME = os.getenv('HOME')
+print(HOME)
 import re 
 import shutil
 import numpy as np
 import math
 import sys
-sys.path.append('../py_functions')
-import generation 
+from py_functions.generation import *
 #sync
 class Analyse_Parametrique():
     """Permet de gerer les parametres durant une etude parametrique"""
@@ -13,7 +14,7 @@ class Analyse_Parametrique():
         #######parametres de l etude parametrique##########
         #le parametre selectionne est aussi celui qui va etre post traite
         self.resultsdir = "../results/"
-        self.bashDir = "../myLibs/bash_functions/"
+        self.bashDir = HOME + "/MYLIBS/bash_functions/"
         self.para_name 	=  para_name
         self.namedir 	= self.resultsdir+namestud.strip()+'/'
         # list des valeur du parametre a run
@@ -86,7 +87,7 @@ class Analyse_Parametrique():
         self.whichMesh          = 1
         
         ######### For continuing study  ######
-        self.REV = generation.Six_pack()
+        self.REV = Six_pack()
         self.REV.noc = 10
         self.REV.rmean = self.r
         self.REV.lengthmean = self.length
@@ -435,7 +436,6 @@ class Analyse_Parametrique():
     
     def eMeshRVE(self):
         if self.doREV == 1:
-            # self.REV.generation()
             self.REV.run()
                 
         os.system('rm -rf constant/triSurface/*')
