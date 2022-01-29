@@ -214,9 +214,21 @@ void Foam::uniformVelAMIFvPatchField<Type>::updateCoeffs()
             	IOobject::AUTO_WRITE
             	)
             );
+            IOdictionary parameters
+            (
+            	IOobject
+            	(
+            	"parametersOF",
+            	U.time().system(),
+            	U.mesh(),
+            	IOobject::MUST_READ,
+            	IOobject::AUTO_WRITE
+            	)
+            );
 
             dictionary& solverControl = solDict.subDict("SIMPLE");
             int NOC_ = readScalar(solverControl.lookup("nNonOrthogonalCorrectors"))+1;
+            float utol = readScalar(parameters.lookup("UtolBC"));
             i_ = (i_+1) % (NOC_);
 
             ofstream dp("system/Dp");
@@ -226,6 +238,9 @@ void Foam::uniformVelAMIFvPatchField<Type>::updateCoeffs()
 
                 scalar magU = this->magUbarAve(U);
                 Info<<"velocity average in the flow dir :" <<magU<< nl;
+                if(utol > Utol_){
+                    Utol_ = utol;
+                }
                 Info<<"Utol :" <<Utol_<< nl;
                 float a = 1/Utol_;
 

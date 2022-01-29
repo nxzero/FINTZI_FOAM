@@ -2,9 +2,9 @@ import os
 import shutil
 import re
 import math
-from PP_class import *
-from moment_Cox import *
-from triPP_class import *
+from py_functions.PP_class import *
+from py_functions.moment_Cox import *
+from py_functions.triPP_class import *
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import mpmath
@@ -37,15 +37,16 @@ import scipy.special as sc
     # 'axes.color_cycle':["#d61900","#ff9d2e","#ffd042","#002db3","#1f87ff","#00b0c7","#1cd100","#800094"]
 # })
 plt.rcParams.update({
-    "font.size":30,
+    "font.size":23,
     "lines.linewidth" : 3,
     "lines.markersize" : 10,
     "text.usetex": True,
-    "font.family": "Helvetica"
+    "font.family": "serif"
 })
-mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=["#d61900","#ff9d2e","#ffd042","#002db3","#1f87ff","#00b0c7","#1cd100","#800094"]) 
-
-
+markers = [ 'D', 'H','s','d','^','<','o', 'p','h', 'v', '>','*','8', 'd']
+# colors = ["#d61900","#00b0c7","#ff7c6b","#ff9d2e","#ffd042","#002db3","#1f87ff","#1cd100","#800094"]
+colors=["#d61900","#ff9d2e","#ffd042","#002db3","#1f87ff","#00b0c7","#1cd100","#800094"]#["#d61900","#ff9d2e","#ffd042","#002db3","#1f87ff","#00b0c7","#1cd100","#800094"]
+mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=colors) 
 
 Thetas = [0,10,20,30,40,50,60,70,80,90]
 Chis = [2,5,10,15,20,30,40]
@@ -117,7 +118,29 @@ for Chi,Res,Thetas in zip(Chis,Ress,Thetass):
 
 
 
-markers = [ 'D', 'H','s','d','^','<','o', 'p','h', 'v', '>','*','8', 'd']
-# colors = ["#d61900","#00b0c7","#ff7c6b","#ff9d2e","#ffd042","#002db3","#1f87ff","#1cd100","#800094"]
-colors=["#d61900","#ff9d2e","#ffd042","#002db3","#1f87ff","#00b0c7","#1cd100","#800094"]
 
+
+def save_legend(lines,name,ncols):
+    plt.legend(ncol=ncols)
+    plt.gca().set_axis_off()
+    for l in lines:
+        if l:
+            l.pop(0).remove()
+    plt.gca().set_title("")
+    plt.subplots_adjust(left=0, right=0.01, top=0.01, bottom=0)
+    plt.savefig(name, format='pdf',bbox_inches='tight')
+    plt.close()
+    
+    
+# vaki results 
+
+VK = {}
+VKRE = {}
+VKRE['2'] =  np.array([0.989105058366, 2.48171206226,  4.9766536965,  9.98832684825])
+VK['2'] = np.array([20.431911967,  9.56827000787, 5.72172833295,  3.64079233993])
+VKRE['5'] = np.array([0.989105058366,2.48171206226,4.98754863813,9.97743190661])
+VK['5']   = np.array([14.9573590096,7.47748596385,4.67635771975,3.11807492012])
+VKRE['10']= np.array([0.989105058366,2.48171206226 ,4.98754863813  ,9.97743190661  ])
+VK['10']= np.array([12.9766162311,6.7347074219,4.34623392332,3.00803365464])
+for chi in [2,5,10]:
+    VK[str(chi)] = [(Y)*1/(6*math.pi)*(X)*(chi)/chi**(1./3)*(2./3)**(1./3) for X,Y in zip(VKRE[str(chi)],VK[str(chi)])]

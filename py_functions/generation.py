@@ -195,7 +195,7 @@ class Six_pack():
                     CylPerio.colisionCheck(Cylstemp)
                     if CylPerio.notok == 1:
                         Cyl.notok = 1
-                        print( Cyl.notok)
+                        print("collide its self")
                         break
                 if Cyl.notok == 0:
                     self.Cyls.append([Cyl,str(idcyl)])

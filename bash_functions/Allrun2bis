@@ -19,9 +19,5 @@ mv log.decomposePar log.decomposeParRun
 
 application=$(getApplication)
 runParallel ${application} 
-runApplication reconstructPar -noFunctionObjects
-rm -rf processor*
-runApplication foamLog log.${application}
-${application} -postProcess -latestTime > log.forces
 
 #------------------------------------------------------------------------------

@@ -1,0 +1,15 @@
+#!/bin/sh
+sed -i "s/simpleFoam/pimpleFoam/" system/controlDict
+sed -i "s/simpleFoam/pimpleFoam/" system/controlDict
+. $WM_PROJECT_DIR/bin/tools/RunFunctions    # Tutorial run functions
+application=$(getApplication)
+runParallel ${application} 
+
+runApplication reconstructPar -noFunctionObjects
+rm -rf processor*
+runApplication foamLog log.${application}
+
+sed -i "s/pimpleFoam/simpleFoam/" system/controlDict
+sed -i "s/backward/steadyState/" system/fvSchemes
+
+#------------------------------------------------------------------------------

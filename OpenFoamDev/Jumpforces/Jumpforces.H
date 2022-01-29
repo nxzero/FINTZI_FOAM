@@ -220,7 +220,7 @@ protected:
             word Patch1_;
 
             //- Coordinate system used when evaluating forces/moments
-            coordSystem::cartesian coordSys_;
+            coordSyst²em::cartesian coordSys_;
 
             //- Flag to include porosity effects
             bool porosity_;

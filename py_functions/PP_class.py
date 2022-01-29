@@ -8,7 +8,7 @@ import re
 import numpy as np
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
-import moment_Cox as mc
+import py_functions.moment_Cox as mc
 class Study():
     def __init__(self,namestud,forcestopbot = False,maindir='forces'):
     # def Postprocess(self, namedir):
@@ -140,6 +140,8 @@ class Study():
         self.studies_datas[name]['F_dl_PW'] = self.studies_datas[name]['Forces']['total']['y'] / self.studies_datas[name]['F_h']
         ############ Adimensionnement du moment par eta U L^2 * 0.25
         self.studies_datas[name]['M_had'] = self.studies_datas[name]['Torques']['total']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
+        self.studies_datas[name]['M_hadP'] = self.studies_datas[name]['Torques']['viscous']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
+        self.studies_datas[name]['M_hadV'] = self.studies_datas[name]['Torques']['pressure']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
         self.studies_datas[name]['M_had_PW'] = self.studies_datas[name]['Torques']['total']['x'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
         adim  = self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U']
         self.studies_datas[name]['M_x'] = self.studies_datas[name]['Torques']['total']['x']/ adim
@@ -161,6 +163,7 @@ class Study():
         self.studies_datas[name]['F_dP'] = self.studies_datas[name]['Forces']['pressure']['x']/ adimensionneur
         self.studies_datas[name]['F_lV'] = self.studies_datas[name]['Forces']['viscous']['y']/ adimensionneur
         self.studies_datas[name]['F_lP'] = self.studies_datas[name]['Forces']['pressure']['y']/ adimensionneur
+       
         try: 
             self.studies_datas[name]['parameters']['ThetaU']
             x = self.studies_datas[name]['Forces']['total']['x'] / adimensionneur
@@ -176,19 +179,20 @@ class Study():
             ThetaU = self.studies_datas[name]['parameters']['ThetaU']/360.0 * 2.0*math.pi
             Theta = self.studies_datas[name]['parameters']['Theta']
             
-            self.studies_datas[name]['F_d']  =  x *         math.cos(ThetaU) + y*           math.sin(ThetaU)
-            self.studies_datas[name]['F_d_PW']  =  z *      math.cos(ThetaU) + y*           math.sin(ThetaU)
-            self.studies_datas[name]['F_dd_PW']  =  z2 *      math.cos(ThetaU) + y2*           math.sin(ThetaU)
-            self.studies_datas[name]['F_dd'] =  x2 *        math.cos(ThetaU) + y2*          math.sin(ThetaU)
-            self.studies_datas[name]['F_dV'] =  xViscous *  math.cos(ThetaU) + yViscous*    math.sin(ThetaU)
-            self.studies_datas[name]['F_dP'] =  xPressure * math.cos(ThetaU) + yPressure*   math.sin(ThetaU)
-            self.studies_datas[name]['F_dl'] =  x2 *       math.sin(ThetaU)  - y2*          math.cos(ThetaU)
-            self.studies_datas[name]['F_l']  =  x *        math.sin(ThetaU)  - y*           math.cos(ThetaU)
-            self.studies_datas[name]['F_l_PW']  =  z *     math.sin(ThetaU)  - y*           math.cos(ThetaU)
-            self.studies_datas[name]['F_dl_PW']  =  z2 *     math.sin(ThetaU)  - y2*           math.cos(ThetaU)
-            self.studies_datas[name]['F_lV'] =  xViscous * math.sin(ThetaU)  - yViscous*    math.cos(ThetaU)
-            self.studies_datas[name]['F_lP'] =  xPressure* math.sin(ThetaU)  - yPressure*   math.cos(ThetaU)
-            self.studies_datas[name]['M_had'] =  - self.studies_datas[name]['Torques']['total']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
+            self.studies_datas[name]['F_d']         =  x *         math.cos(ThetaU) + y*           math.sin(ThetaU)
+            self.studies_datas[name]['F_d_PW']      =  z *      math.cos(ThetaU) + y*           math.sin(ThetaU)
+            self.studies_datas[name]['F_dd_PW']     =  z2 *      math.cos(ThetaU) + y2*           math.sin(ThetaU)
+            self.studies_datas[name]['F_dd']        =  x2 *        math.cos(ThetaU) + y2*          math.sin(ThetaU)
+            self.studies_datas[name]['F_dV']        =  xViscous *  math.cos(ThetaU) + yViscous*    math.sin(ThetaU)
+            self.studies_datas[name]['F_dP']        =  xPressure * math.cos(ThetaU) + yPressure*   math.sin(ThetaU)
+            self.studies_datas[name]['F_dl']        =  x2 *       math.sin(ThetaU)  - y2*          math.cos(ThetaU)
+            self.studies_datas[name]['F_l_PW']      =  z *     math.sin(ThetaU)  - y*           math.cos(ThetaU)
+            self.studies_datas[name]['F_dl_PW']     =  z2 *     math.sin(ThetaU)  - y2*           math.cos(ThetaU)
+            self.studies_datas[name]['F_l']         = -  x *        math.sin(ThetaU)  + y*           math.cos(ThetaU)
+            self.studies_datas[name]['F_lV']        = - xViscous * math.sin(ThetaU) + yViscous*    math.cos(ThetaU)
+            self.studies_datas[name]['F_lP']        = - xPressure* math.sin(ThetaU) + yPressure*   math.cos(ThetaU)
+            self.studies_datas[name]['M_had']       =  - self.studies_datas[name]['Torques']['total']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
+        
         except:
             1
 
@@ -202,14 +206,19 @@ class Study():
             theta += 1e-3
         if theta == 90:
             theta -= 1e-3
-        self.studies_datas[name]['eF_d'] = np.abs(self.studies_datas[name]['F_d'] - mc.D2(re,ksi,theta))/self.studies_datas[name]['F_d']
-        self.studies_datas[name]['eF_l'] = (np.abs(self.studies_datas[name]['F_l']) - np.abs(mc.L2(re,ksi,theta)))/np.abs(self.studies_datas[name]['F_l'])
-        self.studies_datas[name]['eM_had'] = (np.abs(self.studies_datas[name]['M_had']) -np.abs( mc.T_CC(re,ksi,theta)))/np.abs(self.studies_datas[name]['M_had'])
         # self.studies_datas[name]['eF_d'] = np.abs(self.studies_datas[name]['F_d'] - mc.D2(re,ksi,theta))/mc.D2(re,ksi,theta)
         # self.studies_datas[name]['eF_l'] = np.abs(self.studies_datas[name]['F_l'] - mc.L2(re,ksi,theta))/mc.L2(re,ksi,theta)
         # self.studies_datas[name]['eM_had'] = np.abs(self.studies_datas[name]['M_had'] - mc.T_CC(re,ksi,theta))/mc.T_CC(re,ksi,theta)
         self.studies_datas[name]['Re_L'] = re*ksi/2
-
+        if self.studies_datas[name]['F_l']:
+            self.studies_datas[name]['eF_d'] = np.abs(self.studies_datas[name]['F_d'] - mc.D2(re,ksi,theta))/self.studies_datas[name]['F_d']
+            self.studies_datas[name]['eF_l'] = (np.abs(self.studies_datas[name]['F_l']) - np.abs(mc.L2(re,ksi,theta)))/np.abs(self.studies_datas[name]['F_l'])
+            self.studies_datas[name]['eM_had'] = (np.abs(self.studies_datas[name]['M_had']) -np.abs( mc.T_CC(re,ksi,theta)))/np.abs(self.studies_datas[name]['M_had'])
+        else:
+            self.studies_datas[name]['eF_d'] =0# np.abs(self.studies_datas[name]['F_d'] - mc.D2(re,ksi,theta))/self.studies_datas[name]['F_d']
+            self.studies_datas[name]['eF_l'] =0# (np.abs(self.studies_datas[name]['F_l']) - np.abs(mc.L2(re,ksi,theta)))/np.abs(self.studies_datas[name]['F_l'])
+            self.studies_datas[name]['eM_had'] =0# (np.abs(self.studies_datas[name]['M_had']) -np.abs( mc.T_CC(re,ksi,theta)))/np.abs(self.studies_datas[name]['M_had'])
+            
 
         # For tri priodic cases
         if self.ori[0] != 6:
@@ -288,6 +297,8 @@ class Study():
         self.F_d2perp = []
         self.F_perp = []
         self.M_had = []
+        self.M_hadP = []
+        self.M_hadV = []
         self.eM_had = []
         self.M_had_PW = []
         self.fx = []
@@ -331,6 +342,8 @@ class Study():
         self.F_d2perp.append(self.studies_datas[name]['F_d2perp'])
         self.F_perp.append(self.studies_datas[name]['F_perp'])
         self.M_had.append(self.studies_datas[name]['M_had'])
+        self.M_hadP.append(self.studies_datas[name]['M_hadP'])
+        self.M_hadV.append(self.studies_datas[name]['M_hadV'])
         self.eM_had.append(self.studies_datas[name]['eM_had'])
         self.M_had_PW.append(self.studies_datas[name]['M_had_PW'])
         self.fx.append(self.studies_datas[name]['fx'])

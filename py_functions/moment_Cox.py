@@ -68,6 +68,16 @@ def T_CC_myfit(Re,Chi,Theta):#
     return  R*np.sin(2*Theta)
 
 ### Forces Cox ###########################################
+def F_CC_perunitoflength(Re):
+    gamma = 0.5772156649
+    A = - 8. * math.pi * Re**(-1) 
+    B = np.log(1./2. * Re)+ gamma -0.5 -2.*np.log(2.)
+    return A/B
+
+
+def C_d_ref(Re):
+    Re = np.array(Re)
+    return 9.689*Re**(-0.78)*(1+0.147*Re**(0.82))
 
 def F_90_const(X,C1,C2,C3,C4,C6,C7,C9,C10,C11,C12):
     Re,Chi = X

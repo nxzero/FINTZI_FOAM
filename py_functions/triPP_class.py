@@ -1,4 +1,4 @@
-from PP_class import *
+from py_functions.PP_class import *
 import numpy as np
 from numpy import linalg as LA
 import math

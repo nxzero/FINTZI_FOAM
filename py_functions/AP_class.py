@@ -1,11 +1,11 @@
 import os
-HOME = os.getenv('HOME')
-print(HOME)
+MYLIBS = os.getenv('MYLIBS')
 import re 
 import shutil
 import numpy as np
 import math
 import sys
+import pandas as pd
 from py_functions.generation import *
 #sync
 class Analyse_Parametrique():
@@ -14,7 +14,7 @@ class Analyse_Parametrique():
         #######parametres de l etude parametrique##########
         #le parametre selectionne est aussi celui qui va etre post traite
         self.resultsdir = "../results/"
-        self.bashDir = HOME + "/MYLIBS/bash_functions/"
+        self.bashDir = MYLIBS + "/bash_functions/"
         self.para_name 	=  para_name
         self.namedir 	= self.resultsdir+namestud.strip()+'/'
         # list des valeur du parametre a run
@@ -28,7 +28,7 @@ class Analyse_Parametrique():
         self.Theta 	= 45
         self.ThetaU     = 0
         ############ Parametres Fixe #############
-        self.r 		= 0.1
+        self.r 		= 0.5
         self.U 		= 1
         self.Uf 	= 1
         self.rho 	= 1000
@@ -104,6 +104,9 @@ class Analyse_Parametrique():
         
         ########### write only last step of forces ###################
         self.wrinteAtEnd = 0
+        self.wrinteEachTimeStep = self.EndTime
+        self.TimePimple = 10
+        self.printStepPimple = 10
 
     def run(self):
         os.system(self.bashDir+'Allclean')
@@ -118,7 +121,6 @@ class Analyse_Parametrique():
         """this is the run function it run every other function and loop thought it redoing every steps"""
         for P  in self.parameters_list:
             self.set_parameters_dictionnary(P)
-            self.refinement_if_needed(P)
             print(self.para_name+' = '+str(self.parameters[self.para_name]))
             os.system(self.bashDir+'Allclean')
             self.eMeshGenerator()
@@ -131,7 +133,6 @@ class Analyse_Parametrique():
         '''That function won't re do the mesh after all studies'''
         P = self.parameters_list[0]
         self.set_parameters_dictionnary(P)
-        self.refinement_if_needed(P)
         print(self.para_name+' = '+str(self.parameters[self.para_name]))
         os.system(self.bashDir+'Allclean')
         self.eMeshGenerator()
@@ -170,7 +171,6 @@ class Analyse_Parametrique():
         # run the first step
         P  =self.parameters_list[0]
         self.set_parameters_dictionnary(P)
-        self.refinement_if_needed(P)
         print(self.para_name+' = '+str(self.parameters[self.para_name]))
         self.eMeshGenerator()
         self.print_parameters_for_OF()
@@ -229,7 +229,6 @@ class Analyse_Parametrique():
                 self.REV.Cyls = []
             os.system(self.bashDir+'Allclean')
             self.set_parameters_dictionnary(P)
-            self.refinement_if_needed(P)
             print(self.para_name+' = '+str(self.parameters[self.para_name]))
             self.eMeshRVE()
             self.Uf = self.U/(1.-self.REV.phi)
@@ -244,6 +243,36 @@ class Analyse_Parametrique():
             self.Cyls_for_Studies(P)
             self.parameters_for_Studies()
             
+    def run_REV_pimple(self):
+        os.system('mkdir -p '+self.resultsdir)
+        os.system('mkdir -p '+self.namedir)
+        for P in self.parameters_list:
+            if self.REV.DoGen:
+                self.REV.Cyls = []
+            os.system(self.bashDir+'Allclean')
+            self.set_parameters_dictionnary(P)
+            print(self.para_name+' = '+str(self.parameters[self.para_name]))
+            self.eMeshRVE()
+            self.Uf = self.U/(1.-self.REV.phi)
+            print("mean fluid vel :",self.Uf)
+            self.wrinteEachTimeStep = self.EndTime
+            self.set_parameters_dictionnary(P)
+            self.print_parameters_for_OF()
+            os.system(self.bashDir+'Allrun1 '+str(self.whichMesh))
+            self.printPatch()
+            self.forcesFunc('p','U')
+            os.system(self.bashDir+'Allrun2bis')
+            dirs = pd.Series(os.listdir('processor0')) 
+            self.EndTime  = int(dirs[dirs.str.isnumeric()].max()) + self.TimePimple
+            self.wrinteEachTimeStep = self.printStepPimple
+            self.UtolBC = 1
+            self.set_parameters_dictionnary(P)
+            self.print_parameters_for_OF()
+            os.system(self.bashDir+'Allrun3')
+            self.cp_dir_and_files(P)
+            self.Cyls_for_Studies(P)
+            self.parameters_for_Studies()
+            
 
     def run_REV_first_step(self):
         os.system('mkdir -p '+self.resultsdir)
@@ -251,7 +280,6 @@ class Analyse_Parametrique():
         os.system(self.bashDir+'Allclean')
         P  =self.parameters_list[0]
         self.set_parameters_dictionnary(P)
-        self.refinement_if_needed(P)
         print(self.para_name+' = '+str(self.parameters[self.para_name]))
         self.eMeshRVE()
         self.Uf = self.U/(1.-self.REV.phi)
@@ -380,6 +408,7 @@ class Analyse_Parametrique():
             "Rho"       :self.rho,
             "U"         :self.U,
             "ksi"       :self.ksi,
+            "TimePimple":self.TimePimple,
             "Maillage_de_fond":self.Maillage_de_fond,
             "Boundary_layer_lenght":self.Boundary_layer_lenght,
             "Raffinement_de_surface":self.Raffinement_de_surface,
@@ -414,7 +443,8 @@ class Analyse_Parametrique():
             "noc":self.REV.noc,
             "DeltaP"    :self.DeltaP,
             "Shape"     :self.REV.shape,
-            "phi"       :self.REV.phi
+            "phi"       :self.REV.phi,
+            "wrinteEachTimeStep":self.wrinteEachTimeStep
         }
 
     def eMeshGenerator(self):
@@ -576,10 +606,9 @@ class Analyse_Parametrique():
                 self.forces.append('\ttype            forces;')
                 self.forces.append('\tlibs            (forces);')
                 self.forces.append('\twriteControl    timeStep;')
-                self.forces.append('\twriteInterval   $EndTime;')
-                if self.wrinteAtEnd:
-                    self.forces.append('\texecuteControl    timeStep;')
-                    self.forces.append('\texecuteInterval   $EndTime;')
+                self.forces.append('\twriteInterval    $wrinteEachTimeStep;')
+                self.forces.append('\texecuteControl    timeStep;')
+                self.forces.append('\texecuteInterval   $wrinteEachTimeStep;')
                 self.forces.append('\tpatches         ('+name+');')
                 self.forces.append('\tp              '+p+';')                        
                 self.forces.append('\tU              '+U+';')                        
@@ -596,10 +625,9 @@ class Analyse_Parametrique():
                 self.forces.append('\ttype            forces;')
                 self.forces.append('\tlibs            (forces);')
                 self.forces.append('\twriteControl    timeStep;')
-                self.forces.append('\twriteInterval    $EndTime;')
-                if self.wrinteAtEnd:
-                    self.forces.append('\texecuteControl    timeStep;')
-                    self.forces.append('\texecuteInterval   $EndTime;')
+                self.forces.append('\twriteInterval    $wrinteEachTimeStep;')
+                self.forces.append('\texecuteControl    timeStep;')
+                self.forces.append('\texecuteInterval   $wrinteEachTimeStep;')
                 self.forces.append('\tpatches         ('+name+');')
                 self.forces.append('\tp              '+p+';')                        
                 self.forces.append('\tU              '+U+';')                        
@@ -615,7 +643,24 @@ class Analyse_Parametrique():
 
     def print_parameters_for_OF(self):
         """print the parameter C++ file for OpenFoam"""
-        parametersOF = []    
+        parametersOF = []  
+        parametersOF.append("/*--------------------------------*- C++ -*----------------------------------*\\")
+        parametersOF.append("| =========                 |                                                 |")
+        parametersOF.append("| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |")
+        parametersOF.append("|  \\    /   O peration     | Version:  plus                                  |")
+        parametersOF.append("|   \\  /    A nd           | Website:  www.openfoam.com                      |")
+        parametersOF.append("|    \\/     M anipulation  |                                                 |")
+        parametersOF.append("\*---------------------------------------------------------------------------*/")
+        parametersOF.append("FoamFile")
+        parametersOF.append("{")
+        parametersOF.append("    version     2.0;")
+        parametersOF.append("    format      ascii;")
+        parametersOF.append('    arch        "LSB;label=32;scalar=64";')
+        parametersOF.append("    class       dictionary;")
+        parametersOF.append('    location    "system";')
+        parametersOF.append("    object      parametersOF;")
+        parametersOF.append("}")
+        parametersOF.append("// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //")
         for key,value in list(self.parameters.items()):# for python2 :: .iteritems() :
             if type(value) != str:
                 parametersOF.append(key+"      "+str(value)+";"+"\n")
@@ -633,7 +678,7 @@ class Analyse_Parametrique():
         os.system('cp -r --backup=simple log*  '+namedir_simulation)
             # that is for having the name of the last dir
         dirs = os.listdir('.')
-        dirs = filter(lambda x : x!='' and x !='.' and x!='0.' , [re.sub("[^0123456789\.]","",dir) for dir in dirs])
+        dirs = filter(lambda x : x!='' and x!='0.' , [re.sub("[^0123456789\.]","",dir) for dir in dirs])
         dirs =[dire for dire in dirs if dire in os.listdir('.')]
         dirs.sort(key = lambda x : float(x))#range dans l'ordre croissant 
         lastdir = dirs[-1]	#on prend le last car c'est celui qui nous interresse (enfait on prend tt)
@@ -651,6 +696,7 @@ class Analyse_Parametrique():
             os.mkdir(namedir_simulation)
         except:
             os.mkdir(namedir_simulation)
+        print(os.listdir('postProcessing/.'))
         os.system('mv --backup=simple postProcessing/*'+' '+namedir_simulation)
         os.system('mv --backup=simple log*  '+namedir_simulation)	
             # that is for having the name of the last dir
@@ -699,13 +745,7 @@ class Analyse_Parametrique():
         files.append(']')
         np.savetxt(namedir_simulation+'/Cyls_for_this_study.py',files, fmt='%s',delimiter=" ")
         np.savetxt('Cyls_for_this_study.py',files, fmt='%s',delimiter=" ")
-        
-    def refinement_if_needed(self,P):
-        if self.Auto_refinement[0] == 1 and self.Maillage_de_fond >= self.Auto_refinement[1]:
-            self.ER = self.ER + 1
-            self.Raffinement_de_surface = self.Raffinement_de_surface + 1
-            self.Raffinement_de_region = self.Raffinement_de_region + 1
-            self.set_parameters_dictionnary(P)
+
     
     def cp_first_step_here(self,P):
         '''this function take the constant and last step to the case'''
