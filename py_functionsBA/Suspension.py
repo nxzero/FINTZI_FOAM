@@ -11,7 +11,7 @@ import os
 import filecmp
 class Suspension:
     @timedeco
-    def __init__(self,dircase: str,tmin =  0.1,resultsdir ="../results/" ):
+    def __init__(self,dircase: str,tmin =  0.1,resultsdir ="../results/",tend =  ):
         print('Reading : '+dircase+'...')
         # check if the studies has already been carried 
         self.resultsdir = resultsdir
@@ -155,8 +155,6 @@ class Suspension:
         for b in self.bubbles:
             vol = vol + b.vol
         self.volb = vol/vol[0]
-        # self.Vels['dVx'] = self.Vels['dissAir']
-        # self.Vels['dVx'] = self.Vels['dissWater']
     
     def calcul_PDF(self,list,range = None):
         bins = 100

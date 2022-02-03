@@ -58,6 +58,7 @@ class Bubble:
         self.g_r.append(list())    
         self.dist_tag.append(list())
         self.contact.append(0)
+        
     def assigne_list(self,Pos: pd.DataFrame):
         self.x = Pos.x[Pos.tag.eq(self.tag)].values
         self.y = Pos.y[Pos.tag.eq(self.tag)].values
@@ -66,9 +67,6 @@ class Bubble:
         self.vol = Pos.vol[Pos.tag.eq(self.tag)].values
         self.t = Pos.t[Pos.tag.eq(self.tag)].values
         self.i = Pos.i[Pos.tag.eq(self.tag)].values
-        # self.g_r    = Pos.x[Pos.tag.eq(self.tag)].values
-        # self.dist_tag = Pos.x[Pos.tag.eq(self.tag)].values
-        # self.contact = Pos.x[Pos.tag.eq(self.tag)].values
         
 
     

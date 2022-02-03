@@ -266,8 +266,7 @@ class Analyse_Parametrique():
             self.EndTime  = int(dirs[dirs.str.isnumeric()].max()) + self.TimePimple
             self.wrinteEachTimeStep = self.printStepPimple
             self.UtolBC = 1
-            self.set_parameters_dictionnary(P)
-            self.print_parameters_for_OF()
+            self.Relaxcoef = 1
             os.system(self.bashDir+'Allrun3')
             self.cp_dir_and_files(P)
             self.Cyls_for_Studies(P)
@@ -603,8 +602,8 @@ class Analyse_Parametrique():
             for Cyl,i,name in zip(self.REV.VeryRealCyl,range(len(self.REV.VeryRealCyl)),names):
                 self.forces.append('forces_'+Cyl[1])
                 self.forces.append('{')
-                self.forces.append('\ttype            forces;')
-                self.forces.append('\tlibs            (forces);')
+                self.forces.append('\ttype            FirstMoment;')
+                self.forces.append('\tlibs            (libFirstMoment);')
                 self.forces.append('\twriteControl    timeStep;')
                 self.forces.append('\twriteInterval    $wrinteEachTimeStep;')
                 self.forces.append('\texecuteControl    timeStep;')
@@ -622,8 +621,8 @@ class Analyse_Parametrique():
             for Sphere,i,name in zip(self.REV.VeryRealSphere,range(len(self.REV.VeryRealSphere)),names):
                 self.forces.append('forces_'+Sphere[1])
                 self.forces.append('{')
-                self.forces.append('\ttype            forces;')
-                self.forces.append('\tlibs            (forces);')
+                self.forces.append('\ttype            FirstMoment;')
+                self.forces.append('\tlibs            (libFirstMoment);')
                 self.forces.append('\twriteControl    timeStep;')
                 self.forces.append('\twriteInterval    $wrinteEachTimeStep;')
                 self.forces.append('\texecuteControl    timeStep;')

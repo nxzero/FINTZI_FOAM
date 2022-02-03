@@ -60,7 +60,6 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
     
     for std,label in zip(allStudys,Alllabel):
         plt.plot(std.PDFx['ct'],std.PDF['ct'],label = label)
-        # plt.hist(suspension_ga10_mu004.time_of_contacts,bins= 50,density=True,label = r'$N = 10$')
     plt.xlabel(r'$t/\sqrt{D/g}$')
     plt.ylabel(r'$PDF$')
     plt.legend()
@@ -96,7 +95,6 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
     
     for std,label in zip(allStudys,Alllabel):
         plt.plot(std.Vels['t'],std.Vels['dissAir']/std.L0**2,label = label)
-    # plt.savefig(PATH+'/velfluctuationtime.pdf', format='pdf',bbox_inches='tight')
     plt.xlabel(r'$t$')
     plt.ylabel(r'$||\overline{\tau_{fluid}}||/L^2$')
     plt.legend()
@@ -106,7 +104,6 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
     
     for std,label in zip(allStudys,Alllabel):
         plt.plot(std.Vels['t'],std.Vels['dissWater']/std.L0**2,label = label)
-    # plt.savefig(PATH+'/velfluctuationtime.pdf', format='pdf',bbox_inches='tight')
     plt.xlabel(r'$t$')
     plt.ylabel(r'$||\overline{\tau_{bubbles}}||/L^2$')
     plt.legend()
@@ -116,7 +113,6 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
 
     for std,label in zip(allStudys,Alllabel):
         plt.plot(std.Vels['t'],std.Vels['rhovx'],label = label)
-    # plt.savefig(PATH+'/velfluctuationtime.pdf', format='pdf',bbox_inches='tight')
     plt.xlabel(r'$t$')
     plt.ylabel(r'$\rho u_x$')
     plt.legend()
@@ -126,7 +122,6 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
 
     for std,label in zip(allStudys,Alllabel):
         plt.plot(std.Vels['t'],std.Vels['rhovy'],label = label)
-    # plt.savefig(PATH+'/velfluctuationtime.pdf', format='pdf',bbox_inches='tight')
     plt.xlabel(r'$t$')
     plt.ylabel(r'$\rho u_y$')
     plt.legend()
@@ -135,10 +130,25 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
     plt.show()
     for std,label in zip(allStudys,Alllabel):
         plt.plot(std.volb,label = label)
-    # plt.savefig(PATH+'/velfluctuationtime.pdf', format='pdf',bbox_inches='tight')
     plt.xlabel(r'$t$')
     plt.ylabel(r'$V/V_{ini}$')
     plt.legend()
     if PATH:
         plt.savefig(PATH+'/vol.pdf', format='pdf',bbox_inches='tight')
+    plt.show()
+    for std,label in zip(allStudys,Alllabel):
+        plt.plot(std.Vels['t'],std.Vels['Vx'],label = label)
+    plt.xlabel(r'$t$')
+    plt.ylabel(r'$<u>$')
+    plt.legend()
+    if PATH:
+        plt.savefig(PATH+'/Vx.pdf', format='pdf',bbox_inches='tight')
+    plt.show()
+    for std,label in zip(allStudys,Alllabel):
+        plt.plot(std.Vels['t'],std.Vels['Vy'],label = label)
+    plt.xlabel(r'$t$')
+    plt.ylabel(r'$<u>$')
+    plt.legend()
+    if PATH:
+        plt.savefig(PATH+'/Vy.pdf', format='pdf',bbox_inches='tight')
     plt.show()
