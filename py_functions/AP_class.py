@@ -11,40 +11,46 @@ from py_functions.generation import *
 class Analyse_Parametrique():
     """Permet de gerer les parametres durant une etude parametrique"""
     def __init__(self,para_name,parameters_list,namestud):
-        #######parametres de l etude parametrique##########
-        #le parametre selectionne est aussi celui qui va etre post traite
+        """This is the initialisation of the AP class it.
+        We set up all the defaults parameters that we might need.
+
+        Args:
+            para_name (str): This is ne mane of the parameters that will take the values of the parameters_list
+            parameters_list (list): values of the parameters that will vary along the study
+            namestud (str): directory where the study will be stored (the directory will be located in the self.resultsdir directory)
+        """
+        ######### Parameters containing the PATH of all usefull directories ##################
         self.resultsdir = "../results/"
         self.bashDir = MYLIBS + "/bash_functions/"
-        self.para_name 	=  para_name
         self.namedir 	= self.resultsdir+namestud.strip()+'/'
-        # list des valeur du parametre a run
+        self.para_name 	=  para_name
         self.parameters_list = parameters_list
         self.parameters = {}
         self.ghostparameter = 0
-        ############ Parametres independant et sans dimension ####################:
-        ############# Sans Dim ##################
+        ##########################################################################:
+        ############## Parameters linked to the simulation on OpenFoam ###########:
+        ##########################################################################:
+        ######## Fixed parameters (meaning that all the others depend on those) ##:
+        ############# Dimmensionneless ##################
         self.Re 	= 25
         self.ksi 	= 3
         self.Theta 	= 45
         self.ThetaU     = 0
-        ############ Parametres Fixe #############
         self.r 		= 0.5
         self.U 		= 1
         self.Uf 	= 1
         self.rho 	= 1000
-        ########### Parametres Independant ##########
-        #Parametres du maillage 
-        # self.Maillage_de_fond = 70 #par block mesh 
-        self.ndc 	= 28
-        self.Raffinement_de_surface 		    = 2
-        self.GapLevel                           = 2
-        self.Raffinement_de_region 		        = self.Raffinement_de_surface
-        self.ER     = self.Raffinement_de_surface +1
-        self.add_layers 			            = 0 #1 if it s true 0 for false
-        self.wakezone 				            = 1
-        self.nCellsBetweenLevels	            = 2
-        self.xblockmeshrelatif                  = 2 # can't be 0
-        self.ratio_ZY                           = 1
+        ############# Numerical parameters ####################################
+        self.ndc 	= 30 # number of cells per diameter of cylinders
+        self.Raffinement_de_surface 		    = 2   # LEVEL of refinement at the surface of the cyl
+        self.GapLevel                           = 2   #LEVEL of refinement max to close a gap
+        self.Raffinement_de_region 		        = self.Raffinement_de_surface #refinement around a region
+        self.ER     = self.Raffinement_de_surface +1 # LEVEL of refinement of the edges
+        self.add_layers 			            = 0  #1 if it s true 0 for false
+        self.wakezone 				            = 1     # refin the wake zone of true 
+        self.nCellsBetweenLevels	            = 2     
+        self.xblockmeshrelatif                  = 2  # ratio between X/Y length of the domain
+        self.ratio_ZY                           = 1  # ratio between Z/Y length of the domain
         ## Parametre de fvSolution # 
         self.Relaxcoef 	= 0.7
         self.AutoRelaxcoef = 0
@@ -96,7 +102,7 @@ class Analyse_Parametrique():
         self.doREV = 1
         self.mPatchs = 0
         self.DeltaP = 1
-                #############Parametre de la BC modifie #######################
+        #############Parametre de la BC modifie #######################
         self.Relax = 1
         self.UtolBC = 0.01
         
@@ -120,10 +126,11 @@ class Analyse_Parametrique():
         self.eta       	=self.nu*self.rho
 
     def run(self):
+        """This function launch the parametrical simulation one by one.
+        """
         os.system(self.bashDir+'Allclean')
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir) 
-        """this is the run function it run every other function and loop thought it redoing every steps"""
         for P  in self.parameters_list:
             self.set_parameters_dictionnary(P)
             print(self.para_name+' = '+str(self.parameters[self.para_name]))
@@ -135,7 +142,8 @@ class Analyse_Parametrique():
             self.parameters_for_Studies(P)
 
     def run_first_step(self):
-        # Run the first step from nothing 
+        """This function run only the first step of a study.
+        """
         os.system(self.bashDir+'Allclean')
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir)
@@ -151,6 +159,7 @@ class Analyse_Parametrique():
         # run parametric
 
     def run_parametric(self):
+        """This function take the step n-1 to start the n-th simulation."""
         a = self.parameters_list[1:]
         b = self.parameters_list[:-1]
         if len(self.parameters_list) == 1:
@@ -169,6 +178,7 @@ class Analyse_Parametrique():
 
             
     def run_pimple_parametric(self):
+        """Same as run_parametric but with unsteady the solver pimpleFoam"""
         a = self.parameters_list[1:]
         b = self.parameters_list[:-1]
         if len(self.parameters_list) == 1:
@@ -198,6 +208,7 @@ class Analyse_Parametrique():
 
 ######################### The point wise runs functions ################
     def run_PW(self):
+        """Run a simulation with a pre created mesh on pPointWise for example"""
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir)
 
@@ -211,10 +222,10 @@ class Analyse_Parametrique():
             self.parameters_for_Studies(P)
     
     def run_PW_first_step(self):
-        # Run the first step from nothing 
+        """Run the first step of a study where the mesh is already created
+        """
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir)
-        # run the first step
         P  =self.parameters_list[0]
         self.set_parameters_dictionnary(P)
         print(self.para_name+' = '+str(self.parameters[self.para_name]))
@@ -227,6 +238,7 @@ class Analyse_Parametrique():
 
 ################# REV runs functions ##############################
     def run_REV(self):
+        """Launch the parametrical study for REV"""
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir)
         for P in self.parameters_list:
@@ -250,6 +262,7 @@ class Analyse_Parametrique():
             self.parameters_for_Studies(P)
             
     def run_REV_pimple(self):
+        """Launch the parametrical study for REV with pimpleFoam"""
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir)
         for P in self.parameters_list:
@@ -282,6 +295,10 @@ class Analyse_Parametrique():
             self.parameters_for_Studies(P)
             
     def run_Mesh(self):
+        """Generate a mesh for REV study. 
+        The aim of this function is to generate some meshes that works fine.
+        Then in a second study one can run simulations with thoses mesh using run_parametric()
+        """
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir)
         P = self.parameters_list[0]
@@ -308,6 +325,9 @@ class Analyse_Parametrique():
             
 
     def run_REV_first_step(self):
+        """Run the first step of a REV study.
+        It is adviced to use run_mesh, since the meshes often don't work.
+        """
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir)
         os.system(self.bashDir+'Allclean')
