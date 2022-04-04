@@ -8,7 +8,7 @@ class Bubble:
         self.tag = tag
         self.D = 1.             # Define the diametre with respect to the volume since bubbles can merges 
         self.rmax = 3.
-        self.dr = self.D/5.
+        self.dr = self.D/10.
         self.Rs = np.arange(self.D/100,self.rmax,self.dr)
         self.x = list()
         self.y = list()
@@ -20,7 +20,6 @@ class Bubble:
         self.g_r = list()
         self.contact = list()
         self.dist_tag = list()  # list of the distance between one this drop and the others referanced by the tag
-        
     def assigne_0(self):
         i = int(0)
         t = float(0)

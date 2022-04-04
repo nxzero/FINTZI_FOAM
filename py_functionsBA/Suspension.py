@@ -1,5 +1,6 @@
 from datetime import time
 import math
+from re import U
 from py_functionsBA.header import loadbar
 from py_functionsBA.header import timedeco
 import matplotlib.pyplot as plt 
@@ -8,57 +9,46 @@ import numpy.linalg as LA
 import pandas as pd
 from py_functionsBA.Bubble import * 
 import os
+import sys
 import filecmp
 class Suspension:
     @timedeco
-    def __init__(self,dircase: str,tmin =  0.1,resultsdir ="../results/",tend =  ):
+    def __init__(self,dircase: str,tmin =  0.1,resultsdir ="../results/"):
         print('Reading : '+dircase+'...')
         # check if the studies has already been carried 
         self.resultsdir = resultsdir
         self.PATH = self.resultsdir + dircase +'/'
-        file = self.PATH+'Pos.csv'
-        parafile = self.PATH+'Para.csv'
         # reading of main parameters 
-        self.Para = pd.read_csv(parafile)
-        self.L0 = float(self.Para['Ls'].values)
-        self.dt = float(self.Para['dt'].values)
+        sys.path.append('./'+self.PATH)
+        print(os.listdir(self.PATH))
+        import parameters as pstud
+        from importlib import reload
+        reload(pstud)
+        self.parameters = pstud.parameters
+        sys.path.remove('./'+self.PATH)
+        self.Nb = self.parameters['Nb']      #//int(self.Para['Nb'].values)
+        self.L0 = self.parameters['Ls']      #//float(self.Para['Ls'].values)
+        self.dt = self.parameters['dtprint']      #//float(self.Para['dt'].values)
         self.g = 1.
-        self.Pos = pd.read_csv(file)
         # setting up the data 
-        self.TimeList = list(set(self.Pos.t.values))
-        self.TimeList.sort()
         self.tmin = round(tmin,2)
-        index = self.TimeList.index(tmin)
-        self.TimeList = self.TimeList[index:]
-        self.ListStep = list()
-        self.Pos = self.Pos[self.Pos.t.ge(self.tmin)]
-        # separate all the steps 
-        for t in self.TimeList:
-            self.ListStep.append(self.Pos[self.Pos.t.eq(t)])
-
-        self.tagmax = max(self.Pos.tag.values)
         self.bubbles=list()
-        for tag in range(self.tagmax+1):
-            b = Bubble(tag)
-            bstate = self.ListStep[0][self.ListStep[0].tag.eq(tag)]
-            b.assigne(bstate)
-            self.bubbles.append(b)
-            
+        print('reading Pos...')
+        self.Pos = pd.read_csv(self.PATH+'Pos.csv');
+
         # set the mean diameters of bubbles 
-        self.D = float(self.Para['D'].values)
-        self.Nb = len(self.bubbles)
+        self.D = self.parameters['D']
+        self.R = self.parameters['D']/2
         self.dp = self.L0/math.sqrt(self.Nb)
         self.Gs_ad = np.linspace(-1,2,50) # adimensionalised range
+        #rearranging Pos tab
+
         # Reading the Vels file and set all steps
-        
-        self.pair_list = []
-        for i in range(self.tagmax):
-            for j in range(i+1,self.tagmax+1):
-                self.pair_list.append('b'+str(i)+'b'+str(j))
-        self.pair_number = len(self.pair_list)
+        print('reading Stats...')
         self.Vels = pd.read_csv(self.PATH+'Stats.csv')
         # Reading Dist file
         file = self.PATH+'Dist.csv'
+        print('reading Dist...')
         self.Dist = pd.read_csv(file)
         self.Data = self.Dist[self.Dist.t.ge(self.tmin)]
         self.DataRaw = self.Data.drop(columns=['i','t'])
@@ -66,29 +56,53 @@ class Suspension:
         # samples parameters 
         self.TMAX = self.Vels.t.values[-1]
         self.range = 10.
-        
+        self.pair_number = self.Nb*(self.Nb-1)/2
         self.PDF,self.PDFx,self.CDF = {},{},{}
     
     def calcul_all(self):
-        self.create_list()
         self.calcul_radial_distrib(Dr=self.D/10)
         self.calcul_contact_frequency()
         self.calcul_contact_time()
         self.calcul_stats_Vels() 
-
+        # self.UprimeUprime_f()
+        # self.UprimeUprime_p()
+        # self.OmegapOmegap_p()
     
-    @timedeco
-    def create_list(self):
-        """reads the Pos.csv file and create the list of bubbles with the rigth pos.
+        # self.calcul_relative_vel()
+        # self.calcul_acc()
+        self.create_bubbles()
+        
 
-        Args:
-            plot (bool, optional): [Plot the path of bubbles into a pdf file called trajet.pdf]. Defaults to False.
-        """
-        for i,b in enumerate(self.bubbles):
-            b.assigne_list(self.Pos)
-            loadbar(i, len(self.bubbles), prefix='Pos')
-            
-            
+    def create_bubbles(self):
+        for i in range(self.Nb):
+            self.bubbles.append(Bubble(i))
+            self.bubbles[i].Pos = self.Pos[self.Pos.tag == i].sort_values(['t']).copy()
+        
+    def calcul_acc(self):
+        self.Pos = self.Pos.sort_values(['tag','t'])
+        self.Pos['ax'] = self.Pos['vx'].diff()/self.dt
+        self.Pos['ax_rel'] = self.Pos['vx_rel'].diff()/self.dt
+        self.Pos['ay'] = self.Pos['vy'].diff()/self.dt
+        self.Pos['ay_rel'] = self.Pos['vy_rel'].diff()/self.dt
+        self.Pos['aomegaz'] = self.Pos['omegaz'].diff()/self.dt
+        self.Pos = self.Pos.sort_values(['t','tag'])
+        self.Pos = self.Pos[self.Pos.t != 0.1]
+        
+    def calcul_relative_vel(self):
+        self.Pos = self.Pos.sort_values(['t','tag'])
+        dtinv = int(1./self.dt)
+        self.Pos['tagminall'] = ( self.Pos.tagmin + (self.Pos.t - self.dt) * dtinv * self.Nb)
+        self.Pos = self.Pos.astype({"tagminall": int})
+        self.Pos['x_rel'] = self.Pos.x.values - self.Pos.iloc[self.Pos.tagminall].x.values
+        self.Pos['y_rel'] = self.Pos.y.values - self.Pos.iloc[self.Pos.tagminall].y.values
+        self.Pos['vx_rel'] = self.Pos.vx.values - self.Pos.iloc[self.Pos.tagminall].vx.values
+        self.Pos['vy_rel'] = self.Pos.vy.values - self.Pos.iloc[self.Pos.tagminall].vy.values
+        self.Pos['omegaz_rel'] = self.Pos.omegaz.values - self.Pos.iloc[self.Pos.tagminall].vy.values
+             
+    @timedeco
+    def collision_corr(self):
+        # data[[index for index in data.keys() if '1' in index.split('b')]]
+        return 1
 
 
     @timedeco
@@ -115,7 +129,7 @@ class Suspension:
             Nc=((DataB != DataB.shift(1)) & DataB).sum().sum()# number of contact
             Dt = self.Data.t.values[-1] - self.tmin
             vol = self.L0**2
-            self.Hz.append(Nc /Dt/vol)
+            self.Hz.append(Nc /Dt  * math.sqrt(self.D/self.parameters['g']))
             loadbar(i+1, len(self.Gs), prefix='Freq')
     
     def calcul_contact_time(self,G=1):
@@ -141,20 +155,12 @@ class Suspension:
         self.PDFx['ct'],self.CDF['ct'],self.PDF['ct'] = self.calcul_PDF(self.time_of_contacts)
 
     def calcul_stats_Vels(self):
-        self.Stats = self.Vels[self.Vels.t.ge(self.tmin)].drop(columns=['i','t','N_Vof']).describe()
+        self.Stats = self.Vels[self.Vels.t.ge(self.tmin)].drop(columns=['i','t']).describe()
         self.Stats.to_csv(self.PATH+'meanstats.csv')
         # valocities fluctuation 
-        self.U_fluctx  = self.Pos.vx.values - self.Pos.vx.values.mean()
-        self.U_flucty  = self.Pos.vy.values - self.Pos.vy.values.mean()
-        # PDF of the fluct
-        self.PDFx['flucx'],self.CDF['flucx'],self.PDF['flucx'] = self.calcul_PDF(self.U_fluctx)
-        self.PDFx['flucy'],self.CDF['flucy'],self.PDF['flucy'] = self.calcul_PDF(self.U_flucty)
+     
         self.Vels['dVy'] = self.Vels['vydrops']-self.Vels['vyfluid']
         self.Vels['dVx'] = self.Vels['vxdrops']-self.Vels['vxfluid']
-        vol = np.zeros(len(self.bubbles[0].vol))
-        for b in self.bubbles:
-            vol = vol + b.vol
-        self.volb = vol/vol[0]
     
     def calcul_PDF(self,list,range = None):
         bins = 100
@@ -163,4 +169,34 @@ class Suspension:
         CDF = np.cumsum(H)/len(list)
         PDFx,PDF = X1[1:],np.gradient(CDF,dx)
         return PDFx,CDF,PDF
+
+    def UprimeUprime_p(self):
+        """calculation of the particular average pseudo turbulent tensor
+        """
+        #time averaged mean
+
+        self.Pos['Uprime_x'] = self.Pos['vx'] - self.Pos['vx'].mean()
+        self.Pos['Uprime_y'] = self.Pos['vy'] - self.Pos['vy'].mean()
+        # Uprime_p = zip(self.Pos['Uprime_x'].values,self.Pos['Uprime_y'].values)
+        # outer = np.array((2,2))
+        # for vec in Uprime_p:
+        #     outer = np.add(outer,np.outer(vec,vec))
+        self.Pos['UU_pxx'] = self.Pos['Uprime_x']**2
+        self.Pos['UU_pyy'] = self.Pos['Uprime_y']**2
+        self.Pos['UU_pxy'] = self.Pos['Uprime_x']*self.Pos['Uprime_y']
+        
+        # PDF of the fluct
+        self.PDFx['Uprimex'],self.CDF['Uprimex'],self.PDF['Uprimex'] = self.calcul_PDF(self.Pos['Uprime_x'].values)
+        self.PDFx['Uprimey'],self.CDF['Uprimey'],self.PDF['Uprimey'] = self.calcul_PDF(self.Pos['Uprime_y'].values)
+
+    def OmegapOmegap_p(self):
+        """calculation of the particular average pseudo turbulent tensor
+        """
+        #time averaged mean
+
+        self.Pos['Omegap'] = self.Pos['omegaz'] - self.Pos['omegaz'].mean()
+        self.Pos['OO_pzz'] = self.Pos['Omegap']**2
+        
+        # PDF of the fluct
+        self.PDFx['omegap'],self.CDF['omegap'],self.PDF['omegap'] = self.calcul_PDF(self.Pos['Omegap'].values)
 

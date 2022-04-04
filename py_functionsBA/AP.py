@@ -72,7 +72,7 @@ class AP():
             self.print_parameters()
             print(os.listdir())
             if self.nProc > 1:
-                os.system('CC="mpicc -D_MPI='+str(int(self.nProc)) +'"'+ ' make '+self.name_of_C_file+'.tst')
+                os.system('CC99="mpicc -D_MPI='+str(int(self.nProc)) +'"'+ ' make '+self.name_of_C_file+'.tst')
             else:    
                 os.system('make '+self.name_of_C_file+'.tst')
             self.print_parameters_after_sim()

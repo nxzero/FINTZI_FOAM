@@ -17,8 +17,8 @@ class SphereObj(Cylinder):
         gamma = list(np.linspace(0,math.pi*2,self.pres))
         self.list_of_point = []
         self.pts = {}
-        keys = ['Ixb','Ixt','Iyb','Iyt','Izb','Izt']
-        for key in keys:
+        self.keys = ['Ixb','Ixt','Iyb','Iyt','Izb','Izt']
+        for key in self.keys:
             self.pts[key] = {
                 'X':[],
                 'Y':[],
@@ -72,7 +72,7 @@ class SphereObj(Cylinder):
             #(pts on plan - OP) dot the normal
             dist = np.dot((Ip - self.OP),n)
             petit_r = np.sqrt(np.abs(self.r**2-dist**2))
-            for g in gamma:
+            for g in self.gamma:
                 # repere local
                 x = petit_r * np.cos(g)
                 y = petit_r * np.sin(g)
@@ -88,7 +88,7 @@ class SphereObj(Cylinder):
         
         self.M = {}
         X,Y,Z = list(),list(),list()
-        for key in keys:
+        for key in self.keys:
             self.M[key] = list(zip(self.pts[key]['X'],self.pts[key]['Y'],self.pts[key]['Z']))
 
     def rearrangeList(self):

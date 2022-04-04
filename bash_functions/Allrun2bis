@@ -2,13 +2,6 @@
 #cd ${0%/*} || exit 1                        # Run from this directory
 . $WM_PROJECT_DIR/bin/tools/RunFunctions    # Tutorial run functions
 
-runParallel createPatch -overwrite
-runApplication reconstructParMesh -constant 
-rm -rf processor*
-
-
-runApplication renumberMesh -overwrite
-
 # Meshing in parallel
 restore0Dir
 
@@ -16,7 +9,9 @@ restore0Dir
 #sed -i 's/^numberOfSubdomains.*/numberOfSubdomains '$numberOfSubdomains';/' system/decomposeParDict
 runApplication decomposePar -force
 mv log.decomposePar log.decomposeParRun
-
+sed -i "s/runTime/timeStep/" system/controlDict
+sed -i "s/pimpleFoam/simpleFoam/" system/controlDict
+sed -i "s/backward/steadyState/" system/fvSchemes
 application=$(getApplication)
 runParallel ${application} 
 

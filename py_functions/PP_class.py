@@ -7,7 +7,7 @@ import shutil
 import re
 import numpy as np
 from numpy import linalg as LA
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import py_functions.moment_Cox as mc
 class Study():
     def __init__(self,namestud,forcestopbot = False,maindir='forces'):
@@ -139,18 +139,18 @@ class Study():
         self.studies_datas[name]['F_dl'] = self.studies_datas[name]['Forces']['total']['y'] / self.studies_datas[name]['F_h']
         self.studies_datas[name]['F_dl_PW'] = self.studies_datas[name]['Forces']['total']['y'] / self.studies_datas[name]['F_h']
         ############ Adimensionnement du moment par eta U L^2 * 0.25
-        self.studies_datas[name]['M_had'] = self.studies_datas[name]['Torques']['total']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
-        self.studies_datas[name]['M_hadP'] = self.studies_datas[name]['Torques']['viscous']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
-        self.studies_datas[name]['M_hadV'] = self.studies_datas[name]['Torques']['pressure']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
-        self.studies_datas[name]['M_had_PW'] = self.studies_datas[name]['Torques']['total']['x'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
-        adim  = self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U']
+        self.studies_datas[name]['M_had'] = self.studies_datas[name]['Torques']['total']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2*self.studies_datas[name]['parameters']['U'])
+        self.studies_datas[name]['M_hadP'] = self.studies_datas[name]['Torques']['viscous']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2*self.studies_datas[name]['parameters']['U'])
+        self.studies_datas[name]['M_hadV'] = self.studies_datas[name]['Torques']['pressure']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2*self.studies_datas[name]['parameters']['U'])
+        self.studies_datas[name]['M_had_PW'] = self.studies_datas[name]['Torques']['total']['x'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2*self.studies_datas[name]['parameters']['U'])
+        adim  = self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2*self.studies_datas[name]['parameters']['U']
         self.studies_datas[name]['M_x'] = self.studies_datas[name]['Torques']['total']['x']/ adim
         self.studies_datas[name]['M_y'] = self.studies_datas[name]['Torques']['total']['y']/ adim
         self.studies_datas[name]['M_z'] = self.studies_datas[name]['Torques']['total']['z']/ adim
         #################### Force par unit of lengh ############
         self.studies_datas[name]['fx'] = self.studies_datas[name]['Torques']['total']['x']/self.studies_datas[name]['length']
         # force adimensionne par la eta U L/2
-        adimensionneur = self.studies_datas[name]['eta'] * self.studies_datas[name]['parameters']['U'] *self.studies_datas[name]['length'] / 2
+        adimensionneur = self.studies_datas[name]['eta'] * self.studies_datas[name]['parameters']['U'] *self.studies_datas[name]['length'] 
         self.studies_datas[name]['F_d'] = self.studies_datas[name]['Forces']['total']['x'] / adimensionneur
         self.studies_datas[name]['F_d_PW'] = self.studies_datas[name]['Forces']['total']['x'] / adimensionneur
         self.studies_datas[name]['F_l'] = self.studies_datas[name]['Forces']['total']['y'] / adimensionneur   
@@ -191,7 +191,7 @@ class Study():
             self.studies_datas[name]['F_l']         = -  x *        math.sin(ThetaU)  + y*           math.cos(ThetaU)
             self.studies_datas[name]['F_lV']        = - xViscous * math.sin(ThetaU) + yViscous*    math.cos(ThetaU)
             self.studies_datas[name]['F_lP']        = - xPressure* math.sin(ThetaU) + yPressure*   math.cos(ThetaU)
-            self.studies_datas[name]['M_had']       =  - self.studies_datas[name]['Torques']['total']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U'])
+            self.studies_datas[name]['M_had']       =  - self.studies_datas[name]['Torques']['total']['z'] / (self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2*self.studies_datas[name]['parameters']['U'])
         
         except:
             1
@@ -225,8 +225,8 @@ class Study():
             self.calcul_for_tripp(name)
 
     def calcul_for_tripp(self,name):
-        adimensionneur = self.studies_datas[name]['eta'] * self.studies_datas[name]['parameters']['U'] *self.studies_datas[name]['length'] / 2
-        adim  = self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2/4*self.studies_datas[name]['parameters']['U']
+        adimensionneur = self.studies_datas[name]['eta'] * self.studies_datas[name]['parameters']['U'] *self.studies_datas[name]['length'] 
+        adim  = self.studies_datas[name]['eta']*self.studies_datas[name]['length']**2*self.studies_datas[name]['parameters']['U']
         axis = np.cross(np.array([1,0,0]), self.ori)
         axis /= LA.norm(axis,2)
         thetaRad  = np.arccos(abs(self.ori[0]))

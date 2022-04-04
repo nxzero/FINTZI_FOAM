@@ -1,6 +1,8 @@
 #!/bin/sh
 sed -i "s/simpleFoam/pimpleFoam/" system/controlDict
-sed -i "s/simpleFoam/pimpleFoam/" system/controlDict
+sed -i "s/timeStep/runTime/" system/controlDict
+sed -i "s/timeStep/runTime/" system/forces
+sed -i "s/steadyState/backward/" system/fvSchemes
 . $WM_PROJECT_DIR/bin/tools/RunFunctions    # Tutorial run functions
 application=$(getApplication)
 runParallel ${application} 
@@ -10,6 +12,8 @@ rm -rf processor*
 runApplication foamLog log.${application}
 
 sed -i "s/pimpleFoam/simpleFoam/" system/controlDict
+sed -i "s/runTime/timeStep/" system/controlDict
+sed -i "s/runTime/timeStep/" system/forces
 sed -i "s/backward/steadyState/" system/fvSchemes
 
 #------------------------------------------------------------------------------

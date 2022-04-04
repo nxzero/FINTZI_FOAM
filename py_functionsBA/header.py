@@ -7,7 +7,6 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 import filecmp
 import time
-
 def loadbar(iterration, total, prefix='',suffix='',decimals=1, length=50,fill='>'):
     if iterration == 0:
         percent=('{0:.'+str(decimals)+'f}').format(100* (iterration/float(total)))
@@ -35,6 +34,13 @@ def timedeco(func):
         if default['Time']:stop = time.time();print('Duration :',stop-start,'s')
     return inner
 
+plt.rcParams.update({
+    "font.size":20,
+    "lines.linewidth" : 3,
+    "lines.markersize" : 10,
+    "text.usetex": True,
+    "font.family": "serif"
+})
 
 
 #########################################################
@@ -152,3 +158,29 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
     if PATH:
         plt.savefig(PATH+'/Vy.pdf', format='pdf',bbox_inches='tight')
     plt.show()
+    
+def color_negative_red(val):
+    if abs(val) < 0.2:  
+        color = 'black' 
+    elif abs(val) < 0.6: 
+        color = 'blue' 
+    elif abs(val) < 0.9: 
+        color = 'orange' 
+    elif abs(val) > 0.9: 
+        color = 'red' 
+    else:
+        color = 'green' 
+        
+    return 'color: %s' % color
+
+
+# t = s.bubbles[0].Pos['t'].values[750:]
+# y = s.bubbles[0].Pos['defnorm'].values[750:]
+def FFT(x,y):
+    sp = np.abs(np.fft.fft(y))
+    freq = np.fft.fftfreq(x.shape[-1],1/(x[0]-x[1])) 
+    i = freq > 0
+    return freq[i],sp[i]
+# plt.plot(freq[i], sp[i],'.')
+# plt.xlim([0,0.01])
+# plt.show()

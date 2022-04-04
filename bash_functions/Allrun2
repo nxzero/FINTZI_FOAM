@@ -17,6 +17,10 @@ restore0Dir
 runApplication decomposePar -force
 mv log.decomposePar log.decomposeParRun
 
+sed -i "s/pimpleFoam/simpleFoam/" system/controlDict
+sed -i "s/backward/steadyState/" system/fvSchemes
+sed -i "s/runTime/timeStep/" system/controlDict
+
 application=$(getApplication)
 runParallel ${application} 
 runApplication reconstructPar -noFunctionObjects

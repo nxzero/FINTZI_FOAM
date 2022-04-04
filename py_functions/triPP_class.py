@@ -25,7 +25,7 @@ class triStudy(Study):
         
         sys.path.append('./'+self.dircase+'/')
         import Cyls_for_this_study as cylsStud
-        import importlib
+        from importlib import reload
         reload(cylsStud)
         self.cylsStud = cylsStud
         sys.path.remove('./'+self.dircase+'/')

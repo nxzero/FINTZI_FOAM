@@ -40,6 +40,12 @@ restore0Dir
 #sed -i 's/^numberOfSubdomains.*/numberOfSubdomains '$numberOfSubdomains';/' system/decomposeParDict
 runApplication decomposePar -force
 mv log.decomposePar log.decomposeParRun
+if [ $1 -eq 3 ]|| [ $1 -eq 4 ]
+then
+    sed -i 's/simpleFoam/SRFSimpleFoam/' system/controlDict
+else
+    sed -i 's/SRFSimpleFoam/simpleFoam/' system/controlDict
+fi
 
 application=$(getApplication)
 runParallel ${application}
@@ -47,5 +53,5 @@ runParallel ${application}
 runApplication reconstructPar -noFunctionObjects
 rm -rf processor*
 runApplication foamLog log.${application}
-
+sed -i 's/SRFSimpleFoam/simpleFoam/' system/controlDict
 #------------------------------------------------------------------------------

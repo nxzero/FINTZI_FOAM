@@ -37,7 +37,7 @@ import scipy.special as sc
     # 'axes.color_cycle':["#d61900","#ff9d2e","#ffd042","#002db3","#1f87ff","#00b0c7","#1cd100","#800094"]
 # })
 plt.rcParams.update({
-    "font.size":23,
+    "font.size":20,
     "lines.linewidth" : 3,
     "lines.markersize" : 10,
     "text.usetex": True,

@@ -3,7 +3,7 @@ import numpy as np
 from numpy import linalg as LA
 from py_functions.cylinder import *
 from py_functions.sphere import *
-
+import sys
 class Six_pack():
     def __init__(self):
         self.sizex = 1
@@ -41,6 +41,10 @@ class Six_pack():
         self.CylNoMod = set()
         self.addPerio   =1
 
+
+        
+        
+
     def run(self):        
         self.print_parameters()
         if self.DoGen:
@@ -61,6 +65,7 @@ class Six_pack():
         self.generation_des_lists()
         self.correction_des_lists()   
         self.generation_des_points()
+
 
     def DoLoopMethode(self):
         print('##############################################################################')

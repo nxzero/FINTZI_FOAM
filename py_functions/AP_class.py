@@ -36,8 +36,8 @@ class Analyse_Parametrique():
         #Parametres du maillage 
         # self.Maillage_de_fond = 70 #par block mesh 
         self.ndc 	= 28
-        self.Raffinement_de_surface 		    = 3
-        self.GapLevel                           = 3
+        self.Raffinement_de_surface 		    = 2
+        self.GapLevel                           = 2
         self.Raffinement_de_region 		        = self.Raffinement_de_surface
         self.ER     = self.Raffinement_de_surface +1
         self.add_layers 			            = 0 #1 if it s true 0 for false
@@ -72,8 +72,6 @@ class Analyse_Parametrique():
         self.zCenter   	=self.z/2
         
         #Parametre materiaux 
-        self.nu 	= self.r*2*self.U/self.Re
-        self.eta       	=self.nu*self.rho
         #couche limite 
         self.MeshForHightRe = 0
         self.Boundary_layer_lenght 		= self.r*2/(5*math.sqrt(self.Re))
@@ -106,18 +104,25 @@ class Analyse_Parametrique():
         self.wrinteAtEnd = 0
         self.wrinteEachTimeStep = self.EndTime
         self.TimePimple = 10
-        self.printStepPimple = 10
+        self.printStepPimple = 0.1
+        ########### For rotating cylinders ###################
+                  
+        if self.U != 0:
+            self.nu 	= self.r*2*self.U/self.Re
+        else:
+            self.nu = self.r*2*self.Uz/self.Re
+        self.Re_omega = 1.
+        self.omega = self.Re_omega*self.nu/(self.length*self.r)
+        self.Uz = 0 
+        self.Re_omega_para = 0.
+        self.omega_para = self.Re_omega_para*self.nu/(self.r*self.r*2)
+        
+        self.eta       	=self.nu*self.rho
 
     def run(self):
         os.system(self.bashDir+'Allclean')
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir) 
-        if self.ReMesh == 1:
-            self.run_RM()
-        elif self.ReMesh == 0:
-            self.run_NM()
-
-    def run_RM(self):
         """this is the run function it run every other function and loop thought it redoing every steps"""
         for P  in self.parameters_list:
             self.set_parameters_dictionnary(P)
@@ -127,41 +132,7 @@ class Analyse_Parametrique():
             self.print_parameters_for_OF()
             os.system(self.bashDir+'Allrun '+str(self.whichMesh))
             self.cp_dir_and_files(P)
-            self.parameters_for_Studies()
-        
-    def run_NM(self):
-        '''That function won't re do the mesh after all studies'''
-        P = self.parameters_list[0]
-        self.set_parameters_dictionnary(P)
-        print(self.para_name+' = '+str(self.parameters[self.para_name]))
-        os.system(self.bashDir+'Allclean')
-        self.eMeshGenerator()
-        self.print_parameters_for_OF()
-        os.system(self.bashDir+'RunMeshOnly ' + str(self.whichMesh))
-        for P  in self.parameters_list:
-            self.set_parameters_dictionnary(P)
-            print(self.para_name+' = '+str(self.parameters[self.para_name]))
-            self.print_parameters_for_OF()
-            os.system(self.bashDir+'AllrunExceptTheMesh')
-            self.cp_dir_and_files(P)
-            self.parameters_for_Studies()
-
-    def run_FAOC(self):
-        '''That function will run an old cases with new parameters'''
-        os.system(self.bashDir+'Allclean')
-        os.system('mkdir -p '+self.resultsdir)
-        os.system('mkdir -p '+self.namedir)
-        for P  in self.parameters_list:
-            self.cp_first_step_here(P)
-            self.cp_constant_file_here(P)
-            self.getStudyParameters()
-            self.set_parameters_dictionnary(P)
-            print(self.para_name+' = '+str(self.parameters[self.para_name]))
-            self.print_parameters_for_OF()
-            os.system(self.bashDir+'G')
-            self.mv_dir_and_files(P)
-            self.parameters_for_Studies()
-            #then i have to update parameters...
+            self.parameters_for_Studies(P)
 
     def run_first_step(self):
         # Run the first step from nothing 
@@ -176,20 +147,54 @@ class Analyse_Parametrique():
         self.print_parameters_for_OF()
         os.system(self.bashDir+'Allrun '+str(self.whichMesh))
         self.cp_dir_and_files(P)
-        self.parameters_for_Studies()
+        self.parameters_for_Studies(P)
         # run parametric
 
     def run_parametric(self):
-        for P,Pmoins1  in zip(self.parameters_list[1:],self.parameters_list[:-1]):
+        a = self.parameters_list[1:]
+        b = self.parameters_list[:-1]
+        if len(self.parameters_list) == 1:
+            a  = (self.parameters_list*2)[1:]
+            b  = (self.parameters_list*2)[:-1]
+        for P,Pmoins1  in zip(a,b):
+            os.system(self.bashDir+'Allclean')
+            os.system('rm -f log.*')
             self.cp_first_step_here(Pmoins1)
             self.set_parameters_dictionnary(P)
             print(self.para_name+' = '+str(self.parameters[self.para_name]))
             self.print_parameters_for_OF()
+            os.system(self.bashDir+'AllrunNotrestore0Dir  '+str(self.whichMesh))
+            self.cp_dir_and_files(P)
+            self.parameters_for_Studies(P)
+
+            
+    def run_pimple_parametric(self):
+        a = self.parameters_list[1:]
+        b = self.parameters_list[:-1]
+        if len(self.parameters_list) == 1:
+            a  = (self.parameters_list*2)[1:]
+            b  = (self.parameters_list*2)[:-1]
+            
+        for P,Pmoins1  in zip(a,b):
+            os.system(self.bashDir+'Allclean')
             os.system('rm -f log.*')
-            os.system(self.bashDir+'AllrunNotrestore0Dir')
-            self.mv_dir_and_files(P)
-            self.Cyls_for_Studies(P)
-            self.parameters_for_Studies()
+            self.cp_first_step_here(Pmoins1)
+            self.wrinteEachTimeStep = self.EndTime
+            self.set_parameters_dictionnary(P)
+            print(self.para_name+' = '+str(self.parameters[self.para_name]))
+            self.print_parameters_for_OF()
+            self.printPatch()
+            os.system(self.bashDir+'Allrun2bis')
+            dirs = pd.Series(os.listdir('processor0')) 
+            self.EndTime  = float(dirs[dirs.str.isdigit()].max()) + self.TimePimple
+            self.wrinteEachTimeStep = self.printStepPimple
+            self.UtolBC = 1
+            self.Relaxcoef = 1
+            self.set_parameters_dictionnary(P)
+            self.print_parameters_for_OF()
+            os.system(self.bashDir+'Allrun3')
+            self.cp_dir_and_files(P)
+            self.parameters_for_Studies(P)
 
 ######################### The point wise runs functions ################
     def run_PW(self):
@@ -203,7 +208,7 @@ class Analyse_Parametrique():
             os.system('rm -f log.*')
             os.system(self.bashDir+'AllrunExceptTheMesh')
             self.mv_dir_and_files(P)
-            self.parameters_for_Studies()
+            self.parameters_for_Studies(P)
     
     def run_PW_first_step(self):
         # Run the first step from nothing 
@@ -216,8 +221,8 @@ class Analyse_Parametrique():
         self.print_parameters_for_OF()
         os.system('rm -f log.*')
         os.system(self.bashDir+'AllrunExceptTheMesh')
-        #self.cp_dir_and_files(P)
-        self.parameters_for_Studies()
+        self.cp_dir_and_files(P)
+        self.parameters_for_Studies(P)
 
 
 ################# REV runs functions ##############################
@@ -238,10 +243,11 @@ class Analyse_Parametrique():
             os.system(self.bashDir+'Allrun1 '+str(self.whichMesh))
             self.printPatch()
             self.forcesFunc('p','U')
+            os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh))
             os.system(self.bashDir+'Allrun2 '+str(self.whichMesh))
-            self.cp_dir_and_files(P)
             self.Cyls_for_Studies(P)
-            self.parameters_for_Studies()
+            self.cp_dir_and_files(P)
+            self.parameters_for_Studies(P)
             
     def run_REV_pimple(self):
         os.system('mkdir -p '+self.resultsdir)
@@ -261,16 +267,44 @@ class Analyse_Parametrique():
             os.system(self.bashDir+'Allrun1 '+str(self.whichMesh))
             self.printPatch()
             self.forcesFunc('p','U')
+            os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh))
             os.system(self.bashDir+'Allrun2bis')
             dirs = pd.Series(os.listdir('processor0')) 
-            self.EndTime  = int(dirs[dirs.str.isnumeric()].max()) + self.TimePimple
+            self.EndTime  = float(dirs[dirs.str.isdigit()].max()) + self.TimePimple
             self.wrinteEachTimeStep = self.printStepPimple
             self.UtolBC = 1
             self.Relaxcoef = 1
+            self.set_parameters_dictionnary(P)
+            self.print_parameters_for_OF()
             os.system(self.bashDir+'Allrun3')
-            self.cp_dir_and_files(P)
             self.Cyls_for_Studies(P)
-            self.parameters_for_Studies()
+            self.cp_dir_and_files(P)
+            self.parameters_for_Studies(P)
+            
+    def run_Mesh(self):
+        os.system('mkdir -p '+self.resultsdir)
+        os.system('mkdir -p '+self.namedir)
+        P = self.parameters_list[0]
+        if self.REV.DoGen:
+            self.REV.Cyls = []
+        os.system(self.bashDir+'Allclean')
+        self.set_parameters_dictionnary(P)
+        print(self.para_name+' = '+str(self.parameters[self.para_name]))
+        self.eMeshRVE()
+        self.Uf = self.U/(1.-self.REV.phi)
+        print("mean fluid vel :",self.Uf)
+        self.wrinteEachTimeStep = self.EndTime
+        self.EndTime = 2
+        self.set_parameters_dictionnary(P)
+        self.print_parameters_for_OF()
+        os.system(self.bashDir+'Allrun1')
+        self.printPatch()
+        self.forcesFunc('p','U')
+        os.system(self.bashDir+'Allrun1bis')
+        os.system(self.bashDir+'Allrun2bis')
+        self.Cyls_for_Studies(P)
+        self.cp_dir_and_files(P)
+        self.parameters_for_Studies(P)
             
 
     def run_REV_first_step(self):
@@ -288,10 +322,11 @@ class Analyse_Parametrique():
         os.system(self.bashDir+'Allrun1 '+str(self.whichMesh))
         self.printPatch()
         self.forcesFunc('p','U')
+        os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh))
         os.system(self.bashDir+'Allrun2 '+str(self.whichMesh))
-        self.mv_dir_and_files(P)
-        self.parameters_for_Studies()
         self.Cyls_for_Studies(P)
+        self.cp_dir_and_files(P)
+        self.parameters_for_Studies(P)
 
 ###########################################################################
 
@@ -332,7 +367,16 @@ class Analyse_Parametrique():
         self.x         =max(parameters['HowManyD']*parameters['r']*2,self.length*parameters['HowManyL'])
         self.x2         =self.x*self.xblockmeshrelatif
         #Parametre materiaux 
-        self.nu = parameters['r']*2*parameters['U']/parameters['Re']
+        if self.whichMesh == 4:
+            self.U = 0.
+            self.Uz = 1.
+        else:
+            self.Uz = 0.
+            
+        if self.parameters['U'] != 0:
+            self.nu = parameters['r']*2*parameters['U']/parameters['Re']
+        else:
+            self.nu = parameters['r']*2*parameters['Uz']/parameters['Re']
         #couche limite 
         self.Boundary_layer_lenght = parameters['r']*2/(5*math.sqrt(parameters['Re']))
         self.ndcpd_couche_limite=self.Howmany_cells_per_layers*math.sqrt(parameters['Re'])
@@ -375,11 +419,26 @@ class Analyse_Parametrique():
         self.REV.sizey = self.y
         self.REV.sizez = self.z
         self.forces = []
-
+        if self.whichMesh == 3 or self.whichMesh == 4:
+            self.xCenter = 0
+            self.yCenter = 0
+            
+        ########### For rotating cylinders ###################
+        self.Re_omega = self.parameters['Re_omega']
+        self.Re_omega_para = self.parameters['Re_omega_para']
+        self.omega = self.Re_omega*self.nu/(self.length*self.parameters['r'])
+        self.omega_para = self.Re_omega_para*self.nu/(self.parameters['r']*self.parameters['r']*2)
+       
+            
 
     
     def update_parameters_dictionnary(self):
         self.parameters = {
+            "Uz"        :self.Uz,
+            "omega"     :self.omega,
+            "Re_omega"  :self.Re_omega,
+            "Re_omega_para"  :self.Re_omega_para,
+            "omega_para"     :self.omega_para,
             "Uf"        :self.Uf,
             "UtolBC"    :self.UtolBC,
             "Relax"     :self.Relax,
@@ -597,7 +656,6 @@ class Analyse_Parametrique():
         Ids  = [name[17:] for name in names]
         self.REV.VeryRealCyl = [Cyl for Cyl in self.REV.Cyls if Cyl[1] in Ids]
         self.REV.VeryRealSphere = [Sphere for Sphere in self.REV.Spheres if Sphere[1] in Ids]
-
         if self.mPatchs == 0:
             for Cyl,i,name in zip(self.REV.VeryRealCyl,range(len(self.REV.VeryRealCyl)),names):
                 self.forces.append('forces_'+Cyl[1])
@@ -668,12 +726,17 @@ class Analyse_Parametrique():
     def cp_dir_and_files(self,P):
         namedir_simulation = self.namedir+str(P)
         try:
+            print(os.listdir('postProcessing/.'))
+        except:
+            print('no postProcess stop all the sim')
+            quit()            
+        
+        try:
             shutil.rmtree(namedir_simulation)
             os.mkdir(namedir_simulation)
         except:
             os.mkdir(namedir_simulation)
         os.system('cp -r --backup=simple postProcessing/*'+' '+namedir_simulation)
-        print(os.listdir('postProcessing/.'))
         os.system('cp -r --backup=simple log*  '+namedir_simulation)
             # that is for having the name of the last dir
         dirs = os.listdir('.')
@@ -690,6 +753,11 @@ class Analyse_Parametrique():
         
     def mv_dir_and_files(self,P):
         namedir_simulation = self.namedir+str(P)
+        try:
+            print(os.listdir('postProcessing/.'))
+        except FileNotFoundError:
+            print('no postProcess stop all the sim')
+            quit()  
         try:
             shutil.rmtree(namedir_simulation)
             os.mkdir(namedir_simulation)
@@ -713,7 +781,7 @@ class Analyse_Parametrique():
 
     def parameters_for_Studies(self,P = ''):
         namedir_simulation = self.namedir+str(P)
-        """print the parameter C++ file for OpenFoam"""
+        """print the parameter file for OpenFoam post traitement"""
         files = []    
         files.append('parameters = {')
         for key,value in self.parameters.items(): #.iteritems() : for python2
@@ -724,6 +792,8 @@ class Analyse_Parametrique():
         # files.append('  "para_name":'+'"'+str(self.para)+'"'+',')
         # files.append('  "namedir":'+'"'+str(namedir)+'"')
         files.append('}')
+        print(namedir_simulation)
+        np.savetxt(self.namedir+'/parameters_for_this_study.py',files, fmt='%s',delimiter=" ")
         np.savetxt(namedir_simulation+'/parameters_for_this_study.py',files, fmt='%s',delimiter=" ")
         
     def Cyls_for_Studies(self,P =''):
@@ -742,7 +812,11 @@ class Analyse_Parametrique():
         for Cyl in self.REV.Cyls :
             files.append('\t['+str(Cyl[0].e1[0])+","+str(Cyl[0].e1[1])+","+str(Cyl[0].e1[2])+'],')
         files.append(']')
-        np.savetxt(namedir_simulation+'/Cyls_for_this_study.py',files, fmt='%s',delimiter=" ")
+        files.append('dim = [')
+        for Cyl in self.REV.Cyls :
+            files.append('\t['+str(Cyl[0].r)+","+str(Cyl[0].length)+'],')
+        files.append(']')
+        # np.savetxt(namedir_simulation+'/Cyls_for_this_study.py',files, fmt='%s',delimiter=" ")
         np.savetxt('Cyls_for_this_study.py',files, fmt='%s',delimiter=" ")
 
     
@@ -751,15 +825,38 @@ class Analyse_Parametrique():
         namedir_simulation = self.namedir+str(P)+'/'
         # getting the last dir 
         dirs = os.listdir(namedir_simulation)
-        dirs = filter(lambda x : x!='' and x !='.' and x!='0.' , [re.sub("[^0123456789\.]","",dir) for dir in dirs])
-        dirs =[dire for dire in dirs if dire in os.listdir(namedir_simulation)]
-        dirs.sort(key = lambda x : float(x))#range dans l'ordre croissant 
-        laststep = dirs[-1]
-
+        dirs = pd.Series(os.listdir(namedir_simulation))
+        dirs = dirs[dirs.str.isdigit()]
+        list(filter(lambda x: 'U' in os.listdir(namedir_simulation+x), dirs.values))
+        laststep  = str(max([int(a) for a in dirs[dirs.str.isdigit()]]))
         laststep_file = namedir_simulation + laststep
+        polyMesh = namedir_simulation + 'constant/polyMesh/'
 
         # mv the files here 
+        os.system('cp -r '+polyMesh+' constant/.')
         os.system('cp -r '+laststep_file+' '+laststep)
+        os.system('rm -rf system/forces')
+        os.system('cp '+namedir_simulation+'system/forces system/.')
+        os.system('cp '+namedir_simulation+'Cyls_for_this_study.py .')
+        # import the parameters related to the mesh
+        sys.path.append(namedir_simulation)
+        import parameters_for_this_study as pstud
+        from importlib import reload
+        reload(pstud)
+        self.parameters = pstud.parameters
+        self.Uf = pstud.parameters['Uf']
+        self.REV.Matiere[0] = pstud.parameters["Mx"]
+        self.REV.Matiere[1] = pstud.parameters["My"]
+        self.REV.Matiere[2] = pstud.parameters["Mz"]
+        self.REV.pRef[0] = pstud.parameters["pRefx"]
+        self.REV.pRef[1] = pstud.parameters["pRefy"]
+        self.REV.pRef[2] = pstud.parameters["pRefz"]
+        self.REV.phi = pstud.parameters["phi"]
+        self.REV.T[0] = pstud.parameters["T11"]
+        self.REV.T[1] = pstud.parameters["T22"]
+        self.REV.T[2] = pstud.parameters["T33"]
+        self.REV.noc = pstud.parameters["noc"]
+        sys.path.remove(namedir_simulation)
     
     def cp_constant_file_here(self,P):        
         '''this function take the constant dir to the case'''
@@ -768,3 +865,4 @@ class Analyse_Parametrique():
         os.system('rm -rf constant/')
 
         os.system('cp -rf  '+constant_file+' constant')
+

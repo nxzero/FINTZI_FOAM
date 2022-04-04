@@ -231,20 +231,18 @@ void Foam::uniformVelAMIFvPatchField<Type>::updateCoeffs()
             float utol = readScalar(parameters.lookup("UtolBC"));
             i_ = (i_+1) % (NOC_);
 
-            ofstream dp("system/Dp");
-            dp << "Dp  "<< jumpTable2_<<";";
-            dp.close();
             if(i_ == 0){
 
                 scalar magU = this->magUbarAve(U);
                 Info<<"velocity average in the flow dir :" <<magU<< nl;
-                if(utol > Utol_){
-                    Utol_ = utol;
-                }
+                Utol_ = utol;
                 Info<<"Utol :" <<Utol_<< nl;
                 float a = 1/Utol_;
 
                 if(round((1   -  (magU  -  Ubar_)/Ubar_)*a)/a != 1 ){
+                    ofstream dp("system/Dp");
+                    dp << "Dp  "<< jumpTable2_<<";";
+                    dp.close();
                     jumpTable2_ *= (1   - Relax_ *  (magU  -  Ubar_)/Ubar_);
                     Info<<"The jump has been increased by  :" << 1   -  (magU  -  Ubar_)/Ubar_ << nl;
                     Info<<"Jump  :" << jumpTable2_ << nl;
