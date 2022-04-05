@@ -1,0 +1,5 @@
+#!/bin/bash
+
+wmake all AMImodified/
+wmake all TurbulanceFO/
+wmake all FisrtMoment/
