@@ -350,27 +350,12 @@ class Analyse_Parametrique():
 
 ###########################################################################
 
-    def getStudyParameters(self): 
-        sys.path.append('./'+self.namedir)
-        import parameters_for_this_study as pstud
-        ###### Update the parameters liked to the mesh ########
-        self.ksi = pstud.parameters['ksi']
-        self.HowManyD = pstud.parameters['HowManyD']
-        self.HowManyL = pstud.parameters['HowManyL']
-        self.ratio_ZY = pstud.parameters['ratio_ZY']
-        self.r = pstud.parameters['r']
-        try:
-            self.ndc = pstud.parameters['ndc']
-        except:
-            self.ndc = pstud.parameters['nombre_de_cellules_par_diametre']
-        try:
-            self.whichMesh = pstud.parameters['whichMesh']
-        except:
-            1
-
-        self.Raffinement_de_surface = pstud.parameters['Raffinement_de_surface']
-
     def set_parameters_dictionnary(self,parameter_value):
+        """Update the parameters dictionnary in terms of the new value of the parameter of the study
+
+        Args:
+            parameter_value (float): Parameter of the study. For example, if Re is the parameter then nu need to be recalculated. 
+        """
         self.update_parameters_dictionnary()
         self.parameters[self.para_name] = parameter_value
         self.calcul_parameters(self.parameters)
@@ -378,11 +363,16 @@ class Analyse_Parametrique():
         self.parameters[self.para_name] = parameter_value
 
     def calcul_parameters(self,parameters):
+        """Calcul all the parameters in terms of the updated parameters in parameters variable. 
+
+        Args:
+            parameters (dict): this is the ariable were all the parameters are gathers. 
+        """
     
         ########## Parametres fonction des parametres ci dessus ######## 
         ############## if self.para_name == 'Re' use this formula : ect############
         #info sur le cylindre
-        self.length    =parameters['ksi']*parameters['r']*2
+        self.length    =parameters['ksi']*parameters['r']*2 # here we re calcul the length of ksi or r have changed. 
         #box lenght
         self.x         =max(parameters['HowManyD']*parameters['r']*2,self.length*parameters['HowManyL'])
         self.x2         =self.x*self.xblockmeshrelatif
@@ -453,6 +443,9 @@ class Analyse_Parametrique():
 
     
     def update_parameters_dictionnary(self):
+        """This function refresh all the parameters in the parameters dict with the calculated attribute of the class.
+        If someone want to add any parameters it must be contained here. 
+        """
         self.parameters = {
             "Uz"        :self.Uz,
             "omega"     :self.omega,
@@ -526,7 +519,7 @@ class Analyse_Parametrique():
         }
 
     def eMeshGenerator(self):
-        """Create all the vectors of the eMesh"""
+        """Create all the vectors of the eMesh for a solely cylinder"""
         t =math.radians(self.parameters['Theta'])
         Ocyl = [self.parameters['xCenter'],self.parameters['yCenter'],self.parameters['zCenter']]
         # Coordonne d'un point M du cercle du haut parametre avec l'angle gamma 
@@ -543,6 +536,7 @@ class Analyse_Parametrique():
         self.eMeshForSnappy()
     
     def eMeshRVE(self):
+        """This funciton generate the cylinders packing and every things that are needed by Snappy Hex Mesh."""
         if self.doREV == 1:
             self.REV.run()
                 
@@ -564,7 +558,13 @@ class Analyse_Parametrique():
         self.eMeshForSnappy()
     
     def eMesh(self,M,name,loop):
-        """print the eMesh files from a set of points M"""
+        """Print the .eMesh files for snappyHexMesh from a list of points "M", and the IP of the cylinder "name".
+
+        Args:
+            M (list(float*3)): list of point that describe a edges. 
+            name (str): IP of the cylinder. 
+            loop (bool): If True the eMesh will loop. (The last and the first points will be linked) 
+        """
         eMesh = []    
         eMesh.append("/*--------------------------------*- C++ -*----------------------------------*\\")
         eMesh.append("| =========                 |                                                  |")
@@ -606,6 +606,9 @@ class Analyse_Parametrique():
         np.savetxt('constant/triSurface/'+name+'.eMesh',eMesh, fmt='%s',delimiter=" ")
 
     def eMeshForSnappy(self):
+        """print the eMeshforSnappy file.
+        So that snappyHexMesh knwos where to look for the files.  
+        """
         alleMeshnames = filter(lambda x : x[-5:]=="eMesh" ,   os.listdir('constant/triSurface'))
         print(alleMeshnames  )
         eMeshforSnappy = []
@@ -619,6 +622,8 @@ class Analyse_Parametrique():
         np.savetxt('system/eMeshforSnappy',eMeshforSnappy, fmt='%s',delimiter=" ")
 
     def CylsForSnappy(self):
+        """Print the searchableCylinder object for snappy
+        """
         import numpy as np
         # import parameters
         cylforsnap = []
@@ -647,6 +652,8 @@ class Analyse_Parametrique():
         np.savetxt('system/cylforsnap',cylforsnap, fmt='%s',delimiter=" ")
 
     def printPatch(self):
+        """Print the patch list. one patch correspnd to the surface of a cylinder.
+        """
         # import parameters
         patch = []
         nameP1 = open('patch_list.txt','r').readlines()
@@ -669,6 +676,12 @@ class Analyse_Parametrique():
         np.savetxt('system/patch',patch, fmt='%s',delimiter=" ")
 
     def forcesFunc(self,p,U):
+        """print the force fonctionObject for each cylinder.
+
+        Args:
+            p (str): name of the pression fields. 
+            U (str): name of the velocity feilds.
+        """
         # import parameters
         nameP1 = open('patch_list.txt','r').readlines()
         names = [name.rstrip("\n") for name in nameP1]
@@ -719,7 +732,9 @@ class Analyse_Parametrique():
         np.savetxt('system/forces',self.forces, fmt='%s',delimiter=" ")
 
     def print_parameters_for_OF(self):
-        """print the parameter C++ file for OpenFoam"""
+        """Print the system/parametersOF file. 
+        This is the most important file since all the parameters in OpenFOam take the parameters from that files. 
+        """
         parametersOF = []  
         parametersOF.append("/*--------------------------------*- C++ -*----------------------------------*\\")
         parametersOF.append("| =========                 |                                                 |")
@@ -744,6 +759,11 @@ class Analyse_Parametrique():
         np.savetxt('system/parametersOF',parametersOF, fmt='%s',delimiter=" ")
 
     def cp_dir_and_files(self,P):
+        """This function takes all the important files and direstories and copy them ito the self.namedir directory.
+
+        Args:
+            P (floeat): value of the parameter
+        """
         namedir_simulation = self.namedir+str(P)
         try:
             print(os.listdir('postProcessing/.'))
@@ -772,6 +792,12 @@ class Analyse_Parametrique():
         # os.system('cp -r 0 '+namedir_simulation)
         
     def mv_dir_and_files(self,P):
+        """Same as cp_dir_and_files() but move them insted of copy.
+        Do not use this function.
+
+        Args:
+            P (float ): value of the parameter.
+        """
         namedir_simulation = self.namedir+str(P)
         try:
             print(os.listdir('postProcessing/.'))
@@ -800,8 +826,14 @@ class Analyse_Parametrique():
         self.parameters_for_Studies(P)
 
     def parameters_for_Studies(self,P = ''):
+        """This file print the current parameters into the results directory of the study.
+        This is very usefull to post process the study since we can take back the parameters directly via this py file. 
+
+        Args:
+            P (str, optional): If given, print the parameters in the simulation dir. Defaults to ''.
+            We advice to put the value of P. 
+        """
         namedir_simulation = self.namedir+str(P)
-        """print the parameter file for OpenFoam post traitement"""
         files = []    
         files.append('parameters = {')
         for key,value in self.parameters.items(): #.iteritems() : for python2
@@ -817,7 +849,12 @@ class Analyse_Parametrique():
         np.savetxt(namedir_simulation+'/parameters_for_this_study.py',files, fmt='%s',delimiter=" ")
         
     def Cyls_for_Studies(self,P =''):
-        """print the Cyl C++ file for OpenFoam"""
+        """Print a python file with the info of the cylinders.
+        This way one can postprocess the data knowing the infos of the cylinders directly from this file. 
+
+        Args:
+            P (float, optional): we advice to put the value of P. Defaults to ''.
+        """
         namedir_simulation = self.namedir+str(P)
         files = []    
         files.append('Ids = [')
@@ -841,7 +878,12 @@ class Analyse_Parametrique():
 
     
     def cp_first_step_here(self,P):
-        '''this function take the constant and last step to the case'''
+        """This function bring back all the dir needed to run a simulation from the mesh or the last step of another. 
+        This is usefull when running parametric analysis 
+
+        Args:
+            P (float): This is the value of the parameter where the files come from. 
+        """
         namedir_simulation = self.namedir+str(P)+'/'
         # getting the last dir 
         dirs = os.listdir(namedir_simulation)
@@ -878,11 +920,5 @@ class Analyse_Parametrique():
         self.REV.noc = pstud.parameters["noc"]
         sys.path.remove(namedir_simulation)
     
-    def cp_constant_file_here(self,P):        
-        '''this function take the constant dir to the case'''
-        namedir_simulation = self.namedir+str(P)+'/'
-        constant_file = namedir_simulation + 'constant'
-        os.system('rm -rf constant/')
-
-        os.system('cp -rf  '+constant_file+' constant')
+    
 
