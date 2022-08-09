@@ -35,7 +35,6 @@ class PPsus():
         self.momentsD = pd.DataFrame()  
         self.firstmoments = pd.DataFrame()  
         self.firstmomentsD = pd.DataFrame()  
-        
         self.adimensionneur = self.parameters['eta'] * self.parameters['U'] *self.parameters['length'] / 2
         self.adimensionneur2 = self.parameters['eta'] * self.parameters['U'] *self.parameters['length']**2 / 4.
 

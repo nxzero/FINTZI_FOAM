@@ -1,8 +1,9 @@
 #include "algebra.h"
+
 typedef struct {
   double m,vold,volf;
   pts vel,veld,velf,rhov;
-  double dissd,dissf;
+  double dissd,dissf,pf,pfstd;
   int nvof;
   pts Up_f;
 }sta;
@@ -12,21 +13,23 @@ typedef struct {
 
 
 void Uprime_f(sta * st){
-  double xp,yp;
-  xp=yp=0;
-  foreach(reduction(+:xp) reduction(+:yp)){
-    xp += (u.x[] - st->velf.x) * dv() * (1 - f[]); 
-    yp += (u.y[] - st->velf.y) * dv() * (1 - f[]); 
+  #if dimension == 2 
+  double Up_x=0,Up_y=0,pfstd=0;
+  foreach(reduction(+:Up_x) reduction(+:Up_y)){
+  #elif dimension == 3 
+  double Up_z=0,Up_x=0,Up_y=0,pfstd=0;
+  foreach(reduction(+:Up_x) reduction(+:Up_y) reduction(+:Up_z)){
+  #endif
+    foreach_dimension()
+      Up_x += sq(u.x[] - st->velf.x) * dv() * (1 - f[]); 
+      // Up_x_y += (u.x[] - st->velf.x)*(u.y[] - st->velf.y) * dv() * (1 - f[]); 
+      pfstd += sq(p[] - st->pf) * dv() * (1 - f[]); 
   }
-  st->Up_f.x = xp/st->volf; 
-  st->Up_f.y = yp/st->volf; 
-  #if dimension == 3
-  double zp=0;
-  foreach(reduction(+:zp) ){
-    zp += (u.z[] - st->velf.z) * dv() * (1 - f[]); 
-  }
-  st->Up_f.z = zp/st->volf; 
-  #endif 
+  st->pfstd = pfstd/st->volf;
+  foreach_dimension()
+    st->Up_f.x = Up_x/st->volf; 
+    // st->Up_f.x.x = Up_x/st->volf; 
+    // st->Up_f.x.x = Up_x/st->volf; 
 }
 
 double avg_rho(){
@@ -40,42 +43,6 @@ double avg_rho(){
   rhv= volume ? rhv/volume : 0.;
   return rhv;
 }
-
-double avg_vy(){
-  double rhv=0.,volume=0.;
-  foreach(reduction(+:rhv) reduction(+:volume)){
-    if(f[]!=nodata && dv()>0.){
-      volume +=dv()*(f[]*(rho1-rho2)+rho2);
-      rhv += dv()*(f[]*(rho1-rho2)+rho2)*u.y[];
-    }
-  }
-  rhv= volume ? rhv/volume : 0.;
-  return rhv;
-}
-double avg_vx(){
-  double rhv=0.,volume=0.;
-  foreach(reduction(+:rhv) reduction(+:volume)){
-    if(f[]!=nodata && dv()>0.){
-      volume +=dv()*(f[]*(rho1-rho2)+rho2);
-      rhv += dv()*(f[]*(rho1-rho2)+rho2)*u.x[];
-    }
-  }
-  rhv= volume ? rhv/volume : 0.;
-  return rhv;
-}
-#if dimension == 3
-double avg_vz(){
-  double rhv=0.,volume=0.;
-  foreach(reduction(+:rhv) reduction(+:volume)){
-    if(f[]!=nodata && dv()>0.){
-      volume +=dv()*(f[]*(rho1-rho2)+rho2);
-      rhv += dv()*(f[]*(rho1-rho2)+rho2)*u.z[];
-    }
-  }
-  rhv= volume ? rhv/volume : 0.;
-  return rhv;
-}
-#endif
 
 
 void dissipation_rate (sta * st)
@@ -119,7 +86,8 @@ void calcul_vel_and_rhov(sta * st){
   double vxd,vyd,vxf,vyf,rhovx,rhovy,m,vtd,vtf;
   vxd=vyd=vxf=vyf=rhovx=rhovy=m=vtd=vtf=0;
   // calcul des vol moy , vel moy and momentum moy 
-  foreach(reduction(+:vxd) reduction(+:vyd) reduction(+:vxf) reduction(+:vyf) reduction(+:rhovx) reduction(+:rhovy) reduction(+:m) reduction(+:vtd) reduction(+:vtf) ){
+  foreach(reduction(+:vxd) reduction(+:vyd) reduction(+:vxf) reduction(+:vyf) 
+          reduction(+:rhovx) reduction(+:rhovy) reduction(+:m) reduction(+:vtd) reduction(+:vtf) ){
     double dm=dv()*(f[]*(rho1-rho2)+rho2);
     //average velocity in the drops
     vxd+=dv()*f[]*u.x[];
@@ -130,16 +98,17 @@ void calcul_vel_and_rhov(sta * st){
     //average momentum
     rhovx+=dm*u.x[];
     rhovy+=dm*u.y[];
-    //fluid and drops violume
+    //fluid and drops volume
     vtd+=dv()*f[];
     vtf+=dv()*(1-f[]);
     m+=dm;
   };
-  double Vx,Vy;
-  Vx=Vy=0;
-  foreach(reduction(+:Vx) reduction(+:Vy)){
+  double Vx,Vy,pf;
+  Vx=Vy=pf=0;
+  foreach(reduction(+:Vx) reduction(+:Vy) reduction(+:pf)){
     Vx+=dv()*u.x[];
     Vy+=dv()*u.y[];
+    pf+=dv()*p[]*(1-f[]);
   }
   st->vel.x   = Vx/(Ls*Ls);
   st->vel.y   = Vy/(Ls*Ls);
@@ -147,6 +116,7 @@ void calcul_vel_and_rhov(sta * st){
   st->veld.y  = vyd/vtd;
   st->velf.x  = vxf/vtf;
   st->velf.y  = vyf/vtf;
+  st->pf    = pf/vtf;
   st->rhov.x  = rhovx/m;
   st->rhov.y  = rhovy/m;
   st->m       = m;

@@ -7,6 +7,8 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 import filecmp
 import time
+import matplotlib as mpl
+
 def loadbar(iterration, total, prefix='',suffix='',decimals=1, length=50,fill='>'):
     if iterration == 0:
         percent=('{0:.'+str(decimals)+'f}').format(100* (iterration/float(total)))
@@ -35,18 +37,20 @@ def timedeco(func):
     return inner
 
 plt.rcParams.update({
-    "font.size":20,
-    "lines.linewidth" : 3,
+    "font.size":18,
+    "lines.linewidth" : 2,
     "lines.markersize" : 10,
     "text.usetex": True,
     "font.family": "serif"
 })
+colors=["#d61900","#ff9d2e","#ffd042","#1cd100","#00b0c7","#1f87ff","#002db3","#800094"]#["#d61900","#ff9d2e","#ffd042","#002db3","#1f87ff","#00b0c7","#1cd100","#800094"]
+mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=colors) 
 
 
 #########################################################
 #########    Plots of the suspensions class    ##########
 #########################################################
-def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
+def plot_all_fig(allStudys: list,Alllabel: list, PATH ='',bins = 30):
     for std,label in zip(allStudys,Alllabel):
         plt.plot(std.Pr,std.P,label = label)
     plt.xlabel(r'$r/D$')
@@ -73,34 +77,13 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
         plt.savefig(PATH+'/timePDF.pdf', format='pdf',bbox_inches='tight')
     plt.show()
     
-    for std,label in zip(allStudys,Alllabel):
-        plt.plot(std.PDFx['flucx'],std.PDF['flucx'],label = label)
-    plt.xlabel(r'$U_x$')
-    plt.ylabel(r'$PDF$')
-    plt.legend()
-    if PATH:
-        plt.savefig(PATH+'/velfluctuationX.pdf', format='pdf',bbox_inches='tight')
-    plt.show()
-    for std,label in zip(allStudys,Alllabel):
-        plt.plot(std.PDFx['flucy'],std.PDF['flucy'],label = label)
-    plt.xlabel(r'$U_y$')
-    plt.ylabel(r'$PDF$')
-    plt.legend()
-    if PATH:
-        plt.savefig(PATH+'/velfluctuationY.pdf', format='pdf',bbox_inches='tight')
-    plt.show()
+    #Velocities fluctuations 
+    # Up_XX**2
+    
+    
     
     for std,label in zip(allStudys,Alllabel):
-        plt.plot(std.Vels['t'],std.Vels['dVy'],label = label)
-    plt.xlabel(r'$t$')
-    plt.ylabel(r'$<U_y>$')
-    plt.legend()
-    if PATH:
-        plt.savefig(PATH+'/RelativeVelY.pdf', format='pdf',bbox_inches='tight')
-    plt.show()
-    
-    for std,label in zip(allStudys,Alllabel):
-        plt.plot(std.Vels['t'],std.Vels['dissAir']/std.L0**2,label = label)
+        plt.plot(std.Vels['t'],std.Vels['dissF']/std.L0**2,label = label)
     plt.xlabel(r'$t$')
     plt.ylabel(r'$||\overline{\tau_{fluid}}||/L^2$')
     plt.legend()
@@ -109,7 +92,7 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
     plt.show()
     
     for std,label in zip(allStudys,Alllabel):
-        plt.plot(std.Vels['t'],std.Vels['dissWater']/std.L0**2,label = label)
+        plt.plot(std.Vels['t'],std.Vels['dissD']/std.L0**2,label = label)
     plt.xlabel(r'$t$')
     plt.ylabel(r'$||\overline{\tau_{bubbles}}||/L^2$')
     plt.legend()
@@ -125,7 +108,6 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
     if PATH:
         plt.savefig(PATH+'/rhovx.pdf', format='pdf',bbox_inches='tight')
     plt.show()
-
     for std,label in zip(allStudys,Alllabel):
         plt.plot(std.Vels['t'],std.Vels['rhovy'],label = label)
     plt.xlabel(r'$t$')
@@ -134,16 +116,18 @@ def plot_all_fig(allStudys: list,Alllabel: list, PATH =''):
     if PATH:
         plt.savefig(PATH+'/rhovy.pdf', format='pdf',bbox_inches='tight')
     plt.show()
+    
+
+    # for std,label in zip(allStudys,Alllabel):
+    #     plt.plot(std.volb,label = label)
+    # plt.xlabel(r'$t$')
+    # plt.ylabel(r'$V/V_{ini}$')
+    # plt.legend()
+    # if PATH:
+    #     plt.savefig(PATH+'/vol.pdf', format='pdf',bbox_inches='tight')
+    # plt.show()
     for std,label in zip(allStudys,Alllabel):
-        plt.plot(std.volb,label = label)
-    plt.xlabel(r'$t$')
-    plt.ylabel(r'$V/V_{ini}$')
-    plt.legend()
-    if PATH:
-        plt.savefig(PATH+'/vol.pdf', format='pdf',bbox_inches='tight')
-    plt.show()
-    for std,label in zip(allStudys,Alllabel):
-        plt.plot(std.Vels['t'],std.Vels['Vx'],label = label)
+        plt.hist(std.Vels['t'],std.Vels['Vx'],label = label)
     plt.xlabel(r'$t$')
     plt.ylabel(r'$<u>$')
     plt.legend()

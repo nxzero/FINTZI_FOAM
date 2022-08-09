@@ -22,6 +22,7 @@ class AP():
         self.mu_r = 0.4237805       # ratio between mu
         self.PHI = 0.15             # concentration phi
         self.N = 10                 # sqrt of the number of bubbles 
+        self.Nbsup = 2              # number of sup bubble that need to be in case there is breakage
         # numerical parameters 
         self.ndcmin         = 40
         self.TMAX           = 2000         # end time 
@@ -57,8 +58,19 @@ class AP():
         # numerical parameters
         self.LEVEL =int( math.ceil(np.log(self.ndcmin*self.Ls/self.D)/np.log(2.))  )             # number of cells per diameters of a bubble
         self.ndc = 2**self.LEVEL/self.Ls*self.D
+        self.ESP2 = 1e-6
+        # sedimentational velocity
+        self.U = 2./9. * self.D**2/4. / self.mu_f *(self.rho_d - self.rho_f) *self.g
+        # others non dimensional numbers 
+        self.Oh = self.mu_d / math.sqrt(self.rho_d*self.D/2.*self.sig)
+        self.St = self.rho_d * self.D * self.U/self.mu_f/18.
+        self.Re = self.rho_f * self.D * self.U/self.mu_f
+        # active artificial coalescence 
+        self.COAL = 0
+        self.RAND = 0
         
     def run(self):
+        os.system('sed -i "s/#define dimension.*/#define dimension '+str(self.dimension)+'/" '+str(self.name_of_C_file)+'.c')
         os.system('make clean')
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir) 
@@ -72,8 +84,13 @@ class AP():
             self.print_parameters()
             print(os.listdir())
             if self.nProc > 1:
-                os.system('CC99="mpicc -D_MPI='+str(int(self.nProc)) +'"'+ ' make '+self.name_of_C_file+'.tst')
+                print('RUNINNG parallel')
+                cmd = 'CC="mpicc -D_MPI='+str(int(self.nProc)) +'"'+ ' make '+self.name_of_C_file+'.tst'
+                print(cmd)
+                
+                os.system(cmd)
             else:    
+                print('RUNINNG simple')
                 os.system('make '+self.name_of_C_file+'.tst')
             self.print_parameters_after_sim()
             self.cp_dir_and_files(P)
@@ -106,6 +123,12 @@ class AP():
         
     def update_parameters_dictionnary(self):
         self.parameters = {
+            "RAND"              :self.RAND,
+            "COAL"              :self.COAL,
+            "St"                :self.St,
+            "Re"                :self.Re,
+            "Oh"                :self.Oh,
+            "Nbsup"             :self.Nbsup,
             "para_name"         :self.para_name,
             "namestud"          :self.namestud,
             "name_of_C_file"    :self.name_of_C_file,
@@ -145,7 +168,15 @@ class AP():
         with open('parameters.h','w') as the_file:
             for key,value in self.parameters.items():
                 if(type(value) != str and type(value) != bool  ):
-                    the_file.write('#define '+key+' '+str(round(value,5))+'\n')
+                    the_file.write('#define '+key+' '+str(round(value,7))+'\n')
+        with open('parameters.py','w') as the_file:
+            the_file.write('parameters = {\n')
+            for key,value in self.parameters.items():
+                if(type(value) != str):
+                    the_file.write('"'+key+'":'+str(value)+',\n')
+                else:    
+                    the_file.write('"'+key+'":"'+str(value)+'",\n')
+            the_file.write('}')
                     
     def print_parameters_after_sim(self):
         with open(self.name_of_C_file+'/parameters.h','w') as the_file:

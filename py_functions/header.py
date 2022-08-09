@@ -43,7 +43,7 @@ plt.rcParams.update({
     "text.usetex": True,
     "font.family": "serif"
 })
-markers = [ 'D', 'H','s','d','^','<','o', 'p','h', 'v', '>','*','8', 'd']
+markers = [ 'D', 'o','s','d','^','<','o', 'p','h', 'v', '>','*','8', 'd']
 # colors = ["#d61900","#00b0c7","#ff7c6b","#ff9d2e","#ffd042","#002db3","#1f87ff","#1cd100","#800094"]
 colors=["#d61900","#ff9d2e","#ffd042","#002db3","#1f87ff","#00b0c7","#1cd100","#800094"]#["#d61900","#ff9d2e","#ffd042","#002db3","#1f87ff","#00b0c7","#1cd100","#800094"]
 mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=colors) 
@@ -144,3 +144,9 @@ VKRE['10']= np.array([0.989105058366,2.48171206226 ,4.98754863813  ,9.9774319066
 VK['10']= np.array([12.9766162311,6.7347074219,4.34623392332,3.00803365464])
 for chi in [2,5,10]:
     VK[str(chi)] = [(Y)*1/(6*math.pi)*(X)*(chi)/chi**(1./3)*(2./3)**(1./3) for X,Y in zip(VKRE[str(chi)],VK[str(chi)])]
+    
+def formatNumber(num):
+    if num % 1 == 0:
+        return int(num)
+    else:
+        return num

@@ -1,4 +1,5 @@
 import os
+from venv import create
 MYLIBS = os.getenv('MYLIBS')
 import re 
 import shutil
@@ -173,6 +174,7 @@ class Analyse_Parametrique():
             print(self.para_name+' = '+str(self.parameters[self.para_name]))
             self.print_parameters_for_OF()
             os.system(self.bashDir+'AllrunNotrestore0Dir  '+str(self.whichMesh))
+            self.create_dat_file()
             self.cp_dir_and_files(P)
             self.parameters_for_Studies(P)
 
@@ -258,6 +260,7 @@ class Analyse_Parametrique():
             os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh))
             os.system(self.bashDir+'Allrun2 '+str(self.whichMesh))
             self.Cyls_for_Studies(P)
+            self.create_dat_file()
             self.cp_dir_and_files(P)
             self.parameters_for_Studies(P)
             
@@ -311,6 +314,7 @@ class Analyse_Parametrique():
         self.Uf = self.U/(1.-self.REV.phi)
         print("mean fluid vel :",self.Uf)
         self.wrinteEachTimeStep = self.EndTime
+        oldT = self.EndTime
         self.EndTime = 2
         self.set_parameters_dictionnary(P)
         self.print_parameters_for_OF()
@@ -322,6 +326,7 @@ class Analyse_Parametrique():
         self.Cyls_for_Studies(P)
         self.cp_dir_and_files(P)
         self.parameters_for_Studies(P)
+        self.EndTime = oldT
             
 
     def run_REV_first_step(self):
@@ -345,6 +350,7 @@ class Analyse_Parametrique():
         os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh))
         os.system(self.bashDir+'Allrun2 '+str(self.whichMesh))
         self.Cyls_for_Studies(P)
+        self.create_dat_file()
         self.cp_dir_and_files(P)
         self.parameters_for_Studies(P)
 
@@ -377,7 +383,7 @@ class Analyse_Parametrique():
         self.x         =max(parameters['HowManyD']*parameters['r']*2,self.length*parameters['HowManyL'])
         self.x2         =self.x*self.xblockmeshrelatif
         #Parametre materiaux 
-        if self.whichMesh == 4:
+        if self.whichMesh == 4 or self.whichMesh == 6:
             self.U = 0.
             self.Uz = 1.
         else:
@@ -429,7 +435,7 @@ class Analyse_Parametrique():
         self.REV.sizey = self.y
         self.REV.sizez = self.z
         self.forces = []
-        if self.whichMesh == 3 or self.whichMesh == 4:
+        if self.whichMesh == 3 or self.whichMesh == 4 or self.whichMesh == 6:
             self.xCenter = 0
             self.yCenter = 0
             
@@ -789,6 +795,7 @@ class Analyse_Parametrique():
         os.system('cp -r constant '+namedir_simulation)
         os.system('cp -r system '+namedir_simulation)
         os.system('cp -r Cyls_for_this_study.py '+namedir_simulation)
+        os.system('cp -r DATA.csv '+namedir_simulation)
         # os.system('cp -r 0 '+namedir_simulation)
         
     def mv_dir_and_files(self,P):
@@ -858,25 +865,24 @@ class Analyse_Parametrique():
         namedir_simulation = self.namedir+str(P)
         files = []    
         files.append('Ids = [')
-        for Cyl in self.REV.Cyls :
+        for Cyl in self.REV.VeryRealCyl :
             files.append('\t'+'"'+  Cyl[1]  +'"'+',')
         files.append(']')
         files.append('pos = [')
-        for Cyl in self.REV.Cyls :
+        for Cyl in self.REV.VeryRealCyl :
             files.append('\t['+str(Cyl[0].OP[0])+","+str(Cyl[0].OP[1])+","+str(Cyl[0].OP[2])+'],')
         files.append(']')
         files.append('ori = [')
-        for Cyl in self.REV.Cyls :
+        for Cyl in self.REV.VeryRealCyl :
             files.append('\t['+str(Cyl[0].e1[0])+","+str(Cyl[0].e1[1])+","+str(Cyl[0].e1[2])+'],')
         files.append(']')
         files.append('dim = [')
-        for Cyl in self.REV.Cyls :
+        for Cyl in self.REV.VeryRealCyl :
             files.append('\t['+str(Cyl[0].r)+","+str(Cyl[0].length)+'],')
         files.append(']')
         # np.savetxt(namedir_simulation+'/Cyls_for_this_study.py',files, fmt='%s',delimiter=" ")
         np.savetxt('Cyls_for_this_study.py',files, fmt='%s',delimiter=" ")
 
-    
     def cp_first_step_here(self,P):
         """This function bring back all the dir needed to run a simulation from the mesh or the last step of another. 
         This is usefull when running parametric analysis 
@@ -922,3 +928,21 @@ class Analyse_Parametrique():
     
     
 
+    def create_dat_file(self):
+        os.system("echo Id,R,L,Px,Py,Pz,Ox,Oy,Oz > POS.csv")
+        os.system("echo Fx,Fy,Fz,Fxp,Fyp,Fzp,Fxv,Fyv,Fzv > FOR.csv")
+        os.system("echo Mxx,Mxy,Mxz,Myx,Myy,Myz,Mzx,Mzy,Mzz > MOM.csv")
+        for Cyl in self.REV.VeryRealCyl:    
+            os.system(f"echo {Cyl[1]},{Cyl[0].r},{Cyl[0].length},{Cyl[0].OP[0]},{Cyl[0].OP[1]},{Cyl[0].OP[2]},{Cyl[0].e1[0]},{Cyl[0].e1[1]},{Cyl[0].e1[2]} >> POS.csv")
+        steps = pd.Series(os.listdir())
+        laststep = max([float(a) for a in steps[steps.str.replace('.','').str.isdigit()]])
+        if str(laststep)[-2:] == '.0': laststep = str(laststep)[:-2]
+        os.system('tail -q -n 1 postProcessing/*/'+laststep+'/force.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> FOR.csv')
+        os.system('tail -q -n 1 postProcessing/*/'+laststep+'/firstmoment.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> MOM.csv')
+        os.system("sed -i 's/ /,/g' MOM.csv ")
+        os.system("sed -i 's/ /,/g' FOR.csv ")
+        M = pd.read_csv('MOM.csv')
+        F = pd.read_csv('FOR.csv')
+        P = pd.read_csv('POS.csv')
+        DATA = pd.concat([P,F,M], axis=1)
+        DATA.to_csv('DATA.csv')

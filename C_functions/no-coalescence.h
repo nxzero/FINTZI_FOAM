@@ -92,8 +92,7 @@ whether the two interfaces belong to different bubbles (identified by
 the tag field *b*). If they do then the indices of the two bubbles are
 returned in *b1* and *b2*. */
 
-static bool bubbles_are_close (Point point, scalar c, scalar b,
-			       int * b1, int * b2)
+static bool bubbles_are_close (Point point, scalar c, scalar b,int * b1, int * b2)
 {
   if (c[] > EPS)
     return false;
@@ -173,11 +172,11 @@ void no_coalescence()
   foreach_leaf() // no openMP
     for (scalar c in interfaces)
       if (tracer_is_close (point, c))
-	too_close[c.i] = true;
-#if _MPI
-  MPI_Allreduce (MPI_IN_PLACE, too_close, nvar, MPI_INT, MPI_MAX,
-		 MPI_COMM_WORLD);
-#endif
+        too_close[c.i] = true;
+  #if _MPI
+    MPI_Allreduce (MPI_IN_PLACE, too_close, nvar, MPI_INT, MPI_MAX,
+  		 MPI_COMM_WORLD);
+  #endif
   scalar * maybe_close = NULL;
   for (scalar c in interfaces)
     if (too_close[c.i])
@@ -196,25 +195,25 @@ void no_coalescence()
     tag (b);
 
 
-/*
-    scalar b[];
-  
-    foreach()
-      b[] = (c[]==1);
+    /*
+        scalar b[];
 
-    tag(b);
+        foreach()
+          b[] = (c[]==1);
 
-    foreach()
-      if(c[]>EPS && c[]<1 && !b[])
-	for(int i = -1; i <=1; i++)
-	  for(int j = -1; j <= 1; j++)
-#if dimension>2
-	       for(int k = -1; k<=1; k++)
-#endif
-	    if(c[i,j,k] == 1 && b[i,j,k])
-	      b[] = b[i,j,k];    
+        tag(b);
 
-*/
+        foreach()
+          if(c[]>EPS && c[]<1 && !b[])
+    	for(int i = -1; i <=1; i++)
+    	  for(int j = -1; j <= 1; j++)
+    #if dimension>2
+    	       for(int k = -1; k<=1; k++)
+    #endif
+    	    if(c[i,j,k] == 1 && b[i,j,k])
+    	      b[] = b[i,j,k];    
+
+    */
     /**
     The next step is to build the array *tc* of the bubbles which are
     indeed too close to one another. */
@@ -223,67 +222,67 @@ void no_coalescence()
     foreach_leaf() { // no openMP
       int b1, b2;
       if (bubbles_are_close (point, c, b, &b1, &b2)) {
-	for (int l = 0, * p = tc->p; l < tc->len/sizeof(int); l++, p++)
-	  if (*p == b1 || *p == b2) {
-	    // one of the bubbles is already in the list
-	    b1 = -1; break;
-	  }
-	// Add these bubbles to the list if they are not already there
-	if (b1 != -1) {
-	  assert (b1 >= 0 && b2 >= 0);
-	  array_append (tc, &b1, sizeof (int));
-	  array_append (tc, &b2, sizeof (int));
-	}
+        for (int l = 0, * p = tc->p; l < tc->len/sizeof(int); l++, p++)
+          if (*p == b1 || *p == b2) {
+            // one of the bubbles is already in the list
+            b1 = -1; break;
+          }
+          // Add these bubbles to the list if they are not already there
+          if (b1 != -1) {
+            assert (b1 >= 0 && b2 >= 0);
+            array_append (tc, &b1, sizeof (int));
+            array_append (tc, &b2, sizeof (int));
+          }
       }
     }
-#if _MPI
-    reduce_bubbles (tc);
-#endif
+    #if _MPI
+        reduce_bubbles (tc);
+    #endif
        
     int len = tc->len/sizeof(int);
     if (len > 0) {
 
-#if 0
-      fprintf (ferr, "rep %g", t);
-      for (int i = 0; i < len; i++)
-	fprintf (ferr, " %d", ((int *)tc->p)[i]);
-      fputc ('\n', ferr);
-      fflush (ferr);
-#endif
+      #if 0
+          fprintf (ferr, "rep %g", t);
+          for (int i = 0; i < len; i++)
+          fprintf (ferr, " %d", ((int *)tc->p)[i]);
+          fputc ('\n', ferr);
+          fflush (ferr);
+      #endif
       
       /**
       ### Neighboring tracers
-	 
+
       We need to know which tracer fields are neigboring each
       bubble. If the tracer of index *j* is neighboring the bubble
       of index *i* (in *tc*), then *adj[i*nvar + j]* is set to *true*. */
       
       int nvar = datasize/sizeof(double), adj[len*nvar];
       for (int i = 0; i < len*nvar; i++)
-	adj[i] = false;
+        adj[i] = false;
       
       /**
       Since we are updating *adj*, we cannot use openMP. */
       
       foreach_leaf() // no openMP
-	if (b[])
-	  for (int i = 0, * p = tc->p; i < len; i++, p++)
-	    if (b[] == *p + 1)
-	      
-	      /**
-	      We check whether bubble b[] neighbors cells containing
-	      another tracer. */
-		
-	      foreach_neighbor()
-		for (scalar s in interfaces)
-		  if (s.i != c.i && s[] > EPS)
-		    adj[i*nvar + s.i] = true;
+        if (b[])
+          for (int i = 0, * p = tc->p; i < len; i++, p++)
+            if (b[] == *p + 1)
+
+        /**
+        We check whether bubble b[] neighbors cells containing
+        another tracer. */
+
+        foreach_neighbor()
+          for (scalar s in interfaces)
+            if (s.i != c.i && s[] > EPS)
+              adj[i*nvar + s.i] = true;
       
-#if _MPI
-      MPI_Allreduce (MPI_IN_PLACE, adj, len*nvar, MPI_INT, MPI_MAX,
-		     MPI_COMM_WORLD);
-#endif
-      
+      #if _MPI
+          MPI_Allreduce (MPI_IN_PLACE, adj, len*nvar, MPI_INT, MPI_MAX,
+    		     MPI_COMM_WORLD);
+      #endif
+
       /**
       ### Finding a replacement tracer
 
@@ -293,13 +292,13 @@ void no_coalescence()
       is not advected by VOF anymore). */
       
       if (c.i == f.i) {
-	scalar f1 = fclone (0);
-	foreach()
-	  f1[] = f[];
-	boundary ({f1});
-	interfaces = list_copy ({f});
-	swap (char *, f.name, f1.name);
-	f.i = f1.i;
+	      scalar f1 = fclone (0);
+	      foreach()
+	        f1[] = f[];
+	      boundary ({f1});
+	      interfaces = list_copy ({f});
+	      swap (char *, f.name, f1.name);
+	      f.i = f1.i;
       }
       
       /**
@@ -308,43 +307,42 @@ void no_coalescence()
       
       int rep[len/2];
       for (int i = 0, * p = tc->p; i < len; i += 2) {
-	
-	/**
-	The indices of the pair of neighboring bubbles are stored in
-	`p[i]` and `p[i+1]`. We need to replace only one of the two
-	bubbles. We choose to replace the bubble with the smallest
-	number of neighboring tracers. */
+        /**
+        The indices of the pair of neighboring bubbles are stored in
+        `p[i]` and `p[i+1]`. We need to replace only one of the two
+        bubbles. We choose to replace the bubble with the smallest
+        number of neighboring tracers. */
 
-	int n1 = 0, n2 = 0, j = i;
-	for (scalar s in interfaces)
-	  if (s.i < nvar) {
-	    if (adj[i*nvar + s.i]) n1++;
-	    if (adj[(i + 1)*nvar + s.i]) n2++;
-	  }
-	if (n2 < n1) {
-	  p[i] = p[i + 1];
-	  j++;
-	}
-	
-	/**
-	We look for a replacement VOF tracer which is not already
-	neighboring the bubble. */
+        int n1 = 0, n2 = 0, j = i;
+        for (scalar s in interfaces)
+          if (s.i < nvar) {
+            if (adj[i*nvar + s.i]) n1++;
+            if (adj[(i + 1)*nvar + s.i]) n2++;
+          }
+        if (n2 < n1) {
+          p[i] = p[i + 1];
+          j++;
+        }
 
-	rep[i/2] = -1;
-	for (scalar s in interfaces)
-	  if (s.i != c.i && (s.i >= nvar || !adj[j*nvar + s.i])) {
-	    rep[i/2] = s.i; break;
-	  }
+        /**
+        We look for a replacement VOF tracer which is not already
+        neighboring the bubble. */
 
-	/**
-	If we didn't find any, we create a new one. */
-	
-	if (rep[i/2] < 0) {
-	  scalar t = fclone (list_len (interfaces));
-	  reset ({t}, 0.);
-	  interfaces = list_append (interfaces, t);
-	  rep[i/2] = t.i;
-	}
+        rep[i/2] = -1;
+        for (scalar s in interfaces)
+          if (s.i != c.i && (s.i >= nvar || !adj[j*nvar + s.i])) {
+            rep[i/2] = s.i; break;
+          }
+
+        /**
+        If we didn't find any, we create a new one. */
+
+        if (rep[i/2] < 0) {
+          scalar t = fclone (list_len (interfaces));
+          reset ({t}, 0.);
+          interfaces = list_append (interfaces, t);
+          rep[i/2] = t.i;
+        }
       }
 
       /**
@@ -354,21 +352,21 @@ void no_coalescence()
       close) and apply boundary conditions. */
       
       foreach()
-	for (int i = 0, * p = tc->p; i < len; i += 2, p += 2)
-	  if (b[] == *p + 1) {
-	    scalar t = {rep[i/2]};
-	    t[] = c[]; c[] = 0.;
-	  }
+        for (int i = 0, * p = tc->p; i < len; i += 2, p += 2)
+          if (b[] == *p + 1) {
+            scalar t = {rep[i/2]};
+            t[] = c[]; 
+            c[] = 0.;
+          }
       scalar * list = list_copy ({c});
       for (int i = 0; i < len/2; i++)
-	list = list_add (list, (scalar){rep[i]});
+        list = list_add (list, (scalar){rep[i]});
       boundary (list);
       free (list);
     }
     
     /**
     Finally, we free the arrays and lists. */
-    
     array_free (tc);
   }
   free (maybe_close);
@@ -420,6 +418,7 @@ event cleanup (i = end)
 
 event defaults (i=0)
 {
+/** could meake a dams */
   if(length_of_interfaces > 1)
     {
       scalar f1 = fclone (0);
@@ -427,10 +426,10 @@ event defaults (i=0)
       swap (char *, f.name, f1.name);
       f.i = f1.i;
       while(list_len(interfaces) < length_of_interfaces)
-	{
-	  scalar t = fclone (list_len (interfaces));
-	  interfaces = list_append (interfaces, t);  
-	}
+        {
+          scalar t = fclone (list_len (interfaces));
+          interfaces = list_append (interfaces, t);  
+        }
       length_of_interfaces = 0;
     }
 }

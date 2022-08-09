@@ -65,6 +65,14 @@ double normL2_pts(pts a){
   #endif
   return c;
 }
+double normL2_pts_sq(pts a){
+  #if dimension == 2
+  double c = sq(a.x)+sq(a.y);
+  #elif dimension == 3
+  double c = sq(a.x)+sq(a.y)+sq(a.z);
+  #endif
+  return c;
+}
 double normL2_ten(ten a){
   #if dimension == 2
   double c = sqrt(pow(a.x.x,2)+pow(a.y.y,2)+pow(a.x.y,2)+pow(a.y.x,2));

@@ -9,7 +9,7 @@ runApplication renumberMesh -overwrite
 #sed -i 's/^numberOfSubdomains.*/numberOfSubdomains '$numberOfSubdomains';/' system/decomposeParDict
 runApplication decomposePar -force
 mv log.decomposePar log.decomposeParRun
-if [ $1 -eq 3 ]|| [ $1 -eq 4 ]
+if [ $1 -eq 3 ]|| [ $1 -eq 4 ]|| [ $1 -eq 6 ]
 then
     sed -i 's/simpleFoam/SRFSimpleFoam/' system/controlDict
     sed -i 's/pimpleFoam/SRFSimpleFoam/' system/controlDict
