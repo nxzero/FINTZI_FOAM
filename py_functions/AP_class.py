@@ -94,6 +94,7 @@ class Analyse_Parametrique():
         ######### For continuing study  ######
         self.REV = Six_pack()
         self.REV.noc = 10
+        self.REV.phi = 0.10
         self.REV.rmean = self.r
         self.REV.lengthmean = self.length
         self.REV.sizex = self.x2
@@ -304,6 +305,7 @@ class Analyse_Parametrique():
         """
         os.system('mkdir -p '+self.resultsdir)
         os.system('mkdir -p '+self.namedir)
+        self.HowManyD = ((self.REV.noc+1) * self.ksi * math.pi /8./self.REV.phi)**(1./3.)
         P = self.parameters_list[0]
         if self.REV.DoGen:
             self.REV.Cyls = []
@@ -327,7 +329,33 @@ class Analyse_Parametrique():
         self.cp_dir_and_files(P)
         self.parameters_for_Studies(P)
         self.EndTime = oldT
-            
+      
+    def run_a_lots_mesh(self):
+        self.run_Mesh()
+        i = 1
+        while self.no_results():
+            print(f'{i} th TRY')
+            old = self.REV
+            self.REV = Six_pack()
+            self.REV.noc = old.noc 
+            self.REV.phi = old.phi 
+            self.REV.gap = old.gap 
+            self.REV.rmean = old.rmean 
+            self.REV.lengthmean = old.lengthmean 
+            self.REV.T = old.T 
+            self.REV.minA = old.minA 
+            self.REV.minB = old.minB 
+            self.REV.min2A = old.min2A 
+            self.REV.min2B = old.min2B 
+            self.REV.gapbetweenplanes = old.gapbetweenplanes 
+            self.REV.shape = old.shape 
+            self.REV.DoLoop = old.DoLoop 
+            self.REV.DoGen = old.DoGen 
+            self.REV.DoTheRest = old.DoTheRest 
+            self.REV.DeleteThem = old.DeleteThem 
+            self.REV.addPerio = old.addPerio 
+            i +=1
+            self.run_Mesh()       # Create a mesh       
 
     def run_REV_first_step(self):
         """Run the first step of a REV study.
@@ -775,8 +803,6 @@ class Analyse_Parametrique():
             print(os.listdir('postProcessing/.'))
         except:
             print('no postProcess stop all the sim')
-            quit()            
-        
         try:
             shutil.rmtree(namedir_simulation)
             os.mkdir(namedir_simulation)
@@ -797,6 +823,13 @@ class Analyse_Parametrique():
         os.system('cp -r Cyls_for_this_study.py '+namedir_simulation)
         os.system('cp -r DATA.csv '+namedir_simulation)
         # os.system('cp -r 0 '+namedir_simulation)
+    
+    def no_results(self):
+        try:
+            print(os.listdir('postProcessing/.'))
+            return False
+        except FileNotFoundError:
+            return True
         
     def mv_dir_and_files(self,P):
         """Same as cp_dir_and_files() but move them insted of copy.
@@ -816,6 +849,7 @@ class Analyse_Parametrique():
             os.mkdir(namedir_simulation)
         except:
             os.mkdir(namedir_simulation)
+            
         print(os.listdir('postProcessing/.'))
         os.system('mv --backup=simple postProcessing/*'+' '+namedir_simulation)
         os.system('mv --backup=simple log*  '+namedir_simulation)	
