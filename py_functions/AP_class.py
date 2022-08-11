@@ -958,9 +958,20 @@ class Analyse_Parametrique():
         self.REV.T[1] = pstud.parameters["T22"]
         self.REV.T[2] = pstud.parameters["T33"]
         self.REV.noc = pstud.parameters["noc"]
+        self.set_Cyls_list()
         sys.path.remove(namedir_simulation)
     
-    
+    def set_Cyls_list(self):
+        import Cyls_for_this_study as CC
+        for ids,POS,ORI,DIM in zip(CC.Ids,CC.pos,CC.ori,CC.dim):
+            Cyl =  Cylinder(POS,DIM[0],DIM[1],ORI)
+            self.REV.Cyls.append([Cyl,ids])
+        
+        nameP1 = open('patch_list.txt','r').readlines()
+        names = [name.rstrip("\n") for name in nameP1]
+        #creating the list for the true Cyl no yet merged
+        Ids  = [name[17:] for name in names]
+        self.REV.VeryRealCyl = [Cyl for Cyl in self.REV.Cyls if Cyl[1] in Ids]
 
     def create_dat_file(self):
         os.system("echo Id,R,L,Px,Py,Pz,Ox,Oy,Oz > POS.csv")
