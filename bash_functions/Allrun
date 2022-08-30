@@ -53,5 +53,6 @@ runParallel ${application}
 runApplication reconstructPar -noFunctionObjects
 rm -rf processor*
 runApplication foamLog log.${application}
+simpleFoam -postProcess -latestTime > log.forces
 sed -i 's/SRFSimpleFoam/simpleFoam/' system/controlDict
 #------------------------------------------------------------------------------

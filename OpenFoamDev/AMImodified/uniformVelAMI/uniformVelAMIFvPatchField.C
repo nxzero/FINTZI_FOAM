@@ -244,6 +244,8 @@ void Foam::uniformVelAMIFvPatchField<Type>::updateCoeffs()
                     dp << "Dp  "<< jumpTable2_<<";";
                     dp.close();
                     jumpTable2_ *= (1   - Relax_ *  (magU  -  Ubar_)/Ubar_);
+                    Info<<"Ubar  :" <<  Ubar_ << nl;
+                    Info<<"magU  :" <<  magU << nl;
                     Info<<"The jump has been increased by  :" << 1   -  (magU  -  Ubar_)/Ubar_ << nl;
                     Info<<"Jump  :" << jumpTable2_ << nl;
                 }else{

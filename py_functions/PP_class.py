@@ -246,6 +246,7 @@ class Study():
         self.initlist()
         for name in self.names:
             self.makelist(name)
+        return self
 
     def initlist(self):
         self.parameters_list = []

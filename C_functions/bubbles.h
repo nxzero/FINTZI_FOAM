@@ -172,6 +172,57 @@ void omega(scalar s, scalar tag ,int tg,int tagi,cg n[]){
     #endif
   }
 }
+void omega2(scalar s, scalar tag ,int tg,int tagi,cg n[]){
+  #if dimension == 2
+  double omega_z[tg],J_z[tg],J_y[tg],J_x[tg],J_x_y[tg] ;
+  for (int i = 0; i < tg; i++) omega_z[i]=J_z[i]=J_y[i]=J_x[i]=J_x_y[tg]=0;
+  foreach(reduction(+:omega_z[:tg]) reduction(+:J_z[:tg]) reduction(+:J_x_y[:tg]) 
+  reduction(+:J_y[:tg])  reduction(+:J_x[:tg]) ){
+  #elif dimension == 3
+  double omega_x[tg],omega_y[tg],omega_z[tg],J_z[tg],J_y[tg],J_x[tg],J_z_x[tg],J_y_z[tg],J_x_y[tg];
+  for (int i = 0; i < tg; i++) omega_x[i]=omega_y[i]=omega_z[i]=J_z[i]=J_y[i]=J_x[i]=J_z_x[i]=J_y_z[i]=J_x_y[i]=0;
+  foreach(reduction(+:omega_z[:tg]) reduction(+:J_z[:tg]) reduction(+:J_x_y[:tg])
+          reduction(+:omega_y[:tg]) reduction(+:J_y[:tg]) reduction(+:J_y_z[:tg])
+          reduction(+:omega_x[:tg]) reduction(+:J_x[:tg]) reduction(+:J_z_x[:tg])){
+  #endif
+    if (s[] != nodata && dv() > 0. && s[]>=EPS){
+      int i=tag[]-1;
+      pts pos = POS;
+      pos = POS_perio(pos,n[tagi+i].per);
+      pts posP = diff_pts(pos,n[tagi+i].pos);
+      J_z[i] += dv()*s[]*(pow(posP.x,2)+pow(posP.y,2));
+      omega_z[i] +=  dv()*s[]*(posP.x * u.y[] - posP.y * u.x[]); 
+      J_x_y[i] -= dv()*s[]*posP.x*posP.y;
+      #if dimension == 2
+      J_x[i] += dv()*s[]*pow(posP.y,2);
+      J_y[i] += dv()*s[]*pow(posP.x,2);
+      #elif dimension == 3
+      J_x[i] -= dv()*s[]*(pow(posP.y,2)+pow(posP.z,2));
+      J_y[i] -= dv()*s[]*(pow(posP.z,2)+pow(posP.x,2));
+      J_z_x[i] += dv()*s[]*posP.z*posP.x;
+      J_y_z[i] += dv()*s[]*posP.y*posP.z;
+      omega_x[i] +=  dv()*s[]*(posP.y * u.z[] - posP.z * u.y[]); 
+      omega_y[i] +=  dv()*s[]*(posP.z * u.x[] - posP.x * u.z[]); 
+      #endif
+    }
+  }
+  for(int i=0;i<tg;i++){
+    n[tagi+i].J_x = n[tagi+i].vol ? J_x[i]/n[tagi+i].vol : 0.;
+    n[tagi+i].J_y = n[tagi+i].vol ? J_y[i]/n[tagi+i].vol : 0.;
+    n[tagi+i].J_z = n[tagi+i].vol ? J_z[i]/n[tagi+i].vol : 0.;
+    n[tagi+i].J_x_y = n[tagi+i].vol ? J_x_y[i]/n[tagi+i].vol : 0.;
+    n[tagi+i].omega_z = J_z[i] ? omega_z[i]/J_z[i] : 0.;
+    #if dimension == 2
+    n[tagi+i].defnorm = sqrt(2*sq(n[tagi+i].J_x_y)+sq(n[tagi+i].J_x)+sq(n[tagi+i].J_y)+sq(n[tagi+i].J_z)); 
+    #elif dimension == 3
+    n[tagi+i].omega_x = J_x[i] ? omega_x[i]/J_x[i] : 0.;
+    n[tagi+i].omega_y = J_y[i] ? omega_y[i]/J_y[i] : 0.;
+    n[tagi+i].J_y_z = n[tagi+i].vol ? J_y_z[i]/n[tagi+i].vol : 0.;
+    n[tagi+i].J_z_x = n[tagi+i].vol ? J_z_x[i]/n[tagi+i].vol : 0.;
+    n[tagi+i].defnorm =sqrt(2*sq(n[tagi+i].J_z_x)+2*sq(n[tagi+i].J_y_z)+2*sq(n[tagi+i].J_x_y)+sq(n[tagi+i].J_x)+sq(n[tagi+i].J_y)+sq(n[tagi+i].J_z)); 
+    #endif
+  }
+}
 
 
 void dissipation_rate_on_bubbles (scalar s, scalar tag ,int tg,int tagi,cg n[])

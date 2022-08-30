@@ -12,6 +12,7 @@ class Six_pack():
         self.pRef = np.array([self.sizex/2.,self.sizey/2.,self.sizez - 1e-5])
         self.noc = 10
         self.Cyls = []
+        self.VeryRealCyl = []
         self.Spheres = []
         self.gap = 0
         self.RealCyls = []

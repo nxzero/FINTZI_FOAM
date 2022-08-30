@@ -156,8 +156,13 @@ class Analyse_Parametrique():
         self.eMeshGenerator()
         self.print_parameters_for_OF()
         os.system(self.bashDir+'Allrun '+str(self.whichMesh))
+        self.Cyls_for_Studies(P)
+        self.create_dat_file()
         self.cp_dir_and_files(P)
         self.parameters_for_Studies(P)
+        os.system('echo air_to_sphere > patch_list.txt')
+        os.system('echo air_to_spherePlaneFacestop >> patch_list.txt')
+        os.system('echo air_to_spherePlaneFacesbot >> patch_list.txt')
         # run parametric
 
     def run_parametric(self):
@@ -827,7 +832,14 @@ class Analyse_Parametrique():
     def no_results(self):
         try:
             print(os.listdir('postProcessing/.'))
-            return False
+            f= open('log.simpleFoam', 'r') 
+            self.last_line = f.readlines()[-1]
+            if self.last_line == "Finalising parallel run\n":
+                print('im here')
+                return False
+            else:
+                print('im there')
+                return True
         except FileNotFoundError:
             return True
         
@@ -963,6 +975,7 @@ class Analyse_Parametrique():
     
     def set_Cyls_list(self):
         import Cyls_for_this_study as CC
+        self.REV.Cyls = []
         for ids,POS,ORI,DIM in zip(CC.Ids,CC.pos,CC.ori,CC.dim):
             Cyl =  Cylinder(POS,DIM[0],DIM[1],ORI)
             self.REV.Cyls.append([Cyl,ids])
@@ -974,18 +987,35 @@ class Analyse_Parametrique():
         self.REV.VeryRealCyl = [Cyl for Cyl in self.REV.Cyls if Cyl[1] in Ids]
 
     def create_dat_file(self):
-        os.system("echo Id,R,L,Px,Py,Pz,Ox,Oy,Oz > POS.csv")
-        os.system("echo Fx,Fy,Fz,Fxp,Fyp,Fzp,Fxv,Fyv,Fzv > FOR.csv")
-        os.system("echo Mxx,Mxy,Mxz,Myx,Myy,Myz,Mzx,Mzy,Mzz > MOM.csv")
-        for Cyl in self.REV.VeryRealCyl:    
-            os.system(f"echo {Cyl[1]},{Cyl[0].r},{Cyl[0].length},{Cyl[0].OP[0]},{Cyl[0].OP[1]},{Cyl[0].OP[2]},{Cyl[0].e1[0]},{Cyl[0].e1[1]},{Cyl[0].e1[2]} >> POS.csv")
-        steps = pd.Series(os.listdir())
-        laststep = max([float(a) for a in steps[steps.str.replace('.','').str.isdigit()]])
-        if str(laststep)[-2:] == '.0': laststep = str(laststep)[:-2]
-        os.system('tail -q -n 1 postProcessing/*/'+laststep+'/force.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> FOR.csv')
-        os.system('tail -q -n 1 postProcessing/*/'+laststep+'/firstmoment.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> MOM.csv')
-        os.system("sed -i 's/ /,/g' MOM.csv ")
-        os.system("sed -i 's/ /,/g' FOR.csv ")
+        if self.REV.VeryRealCyl != []: 
+            os.system("echo Re,Phi,Id,R,L,Px,Py,Pz,Ox,Oy,Oz > POS.csv")
+            os.system("echo Fx,Fy,Fz,Fxp,Fyp,Fzp,Fxv,Fyv,Fzv > FOR.csv")
+            os.system("echo Mxx,Mxy,Mxz,Myx,Myy,Myz,Mzx,Mzy,Mzz > MOM.csv")
+            for Cyl in sorted(self.REV.VeryRealCyl, key=lambda x:x[1]):    
+                os.system(f"echo {self.parameters['Re']},{self.REV.phi},{Cyl[1]},{Cyl[0].r},{Cyl[0].length},{Cyl[0].OP[0]},{Cyl[0].OP[1]},{Cyl[0].OP[2]},{Cyl[0].e1[0]},{Cyl[0].e1[1]},{Cyl[0].e1[2]} >> POS.csv")
+            steps = pd.Series(os.listdir())
+            laststep = max([float(a) for a in steps[steps.str.replace('.','').str.isdigit()]])
+            if str(laststep)[-2:] == '.0': laststep = str(laststep)[:-2]
+            print('LASTSTAEP ', laststep)
+            os.system('tail -q -n 1 postProcessing/*/'+laststep+'/force.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> FOR.csv')
+            os.system('tail -q -n 1 postProcessing/*/'+laststep+'/firstmoment.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> MOM.csv')
+            os.system("sed -i 's/ /,/g' MOM.csv ")
+            os.system("sed -i 's/ /,/g' FOR.csv ")
+        else:
+            os.system("echo Fo,Re,Theta,Chi > POS.csv")
+            os.system("echo Fx,Fy,Fz,Fxp,Fyp,Fzp,Fxv,Fyv,Fzv > FOR.csv")
+            os.system("echo Mx,My,Mz,Mxp,Myp,Mzp,Mxv,Myv,Mzv > MOM.csv")
+            forcesdir = ['forces','forces_omega','forcesbot','forcessides','forcestop']
+            for F in forcesdir:    
+                os.system(f"echo {F},{self.parameters['Re']},{self.parameters['Theta']},{self.ksi} >> POS.csv")
+            steps = pd.Series(os.listdir())
+            laststep = max([float(a) for a in steps[steps.str.replace('.','').str.isdigit()]])
+            if str(laststep)[-2:] == '.0': laststep = str(laststep)[:-2]
+            print('LASTSTAEP ', laststep)
+            os.system('tail -q -n 1 postProcessing/*/'+laststep+'/force.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> FOR.csv')
+            os.system('tail -q -n 1 postProcessing/*/'+laststep+'/moment.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> MOM.csv')
+            os.system("sed -i 's/ /,/g' MOM.csv ")
+            os.system("sed -i 's/ /,/g' FOR.csv ")
         M = pd.read_csv('MOM.csv')
         F = pd.read_csv('FOR.csv')
         P = pd.read_csv('POS.csv')
