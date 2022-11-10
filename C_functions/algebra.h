@@ -9,55 +9,47 @@ int main_process(){
   #endif
 }
 
-typedef struct pts{
-  double x;
-  double y;
-  #if dimension == 3
-  double z;
-  #endif
-}pts;
-
 typedef struct ten{
-  pts x;
-  pts y;
+  coord x;
+  coord y;
   #if dimension == 3
-  pts z;
+  coord z;
   #endif
 }ten;
 
-pts add_pts(pts a,pts b){
+coord add_pts(coord a,coord b){
   #if dimension == 2
-  pts c = {a.x+b.x, a.y+b.y};
+  coord c = {a.x+b.x, a.y+b.y};
   #elif dimension == 3
-  pts c = {a.x+b.x, a.y+b.y, a.z+b.z};
+  coord c = {a.x+b.x, a.y+b.y, a.z+b.z};
   #endif
   return c;
 }
-pts diff_pts(pts a,pts b){
+coord diff_pts(coord a,coord b){
   #if dimension == 2
-  pts c = {a.x-b.x,a.y-b.y};
+  coord c = {a.x-b.x,a.y-b.y};
   #elif dimension == 3
-  pts c = {a.x-b.x, a.y-b.y, a.z-b.z};
+  coord c = {a.x-b.x, a.y-b.y, a.z-b.z};
   #endif
   return c;
 }
-pts mult_pts(pts a,double b){
+coord mult_pts(coord a,double b){
   #if dimension == 2
-  pts c = {a.x*b,  a.y*b};
+  coord c = {a.x*b,  a.y*b};
   #elif dimension == 3
-  pts c = {a.x*b,  a.y*b,  a.z*b};
+  coord c = {a.x*b,  a.y*b,  a.z*b};
   #endif
   return c;
 }
-pts div_pts(pts a,double b){
+coord div_pts(coord a,double b){
   #if dimension == 2
-  pts c = {a.x/b,  a.y/b};
+  coord c = {a.x/b,  a.y/b};
   #elif dimension == 3
-  pts c = {a.x/b,  a.y/b,  a.z/b};
+  coord c = {a.x/b,  a.y/b,  a.z/b};
   #endif
   return c;
 }
-double normL2_pts(pts a){
+double normL2_pts(coord a){
   #if dimension == 2
   double c = sqrt(pow(a.x,2)+pow(a.y,2));
   #elif dimension == 3
@@ -65,7 +57,7 @@ double normL2_pts(pts a){
   #endif
   return c;
 }
-double normL2_pts_sq(pts a){
+double normL2_pts_sq(coord a){
   #if dimension == 2
   double c = sq(a.x)+sq(a.y);
   #elif dimension == 3
@@ -83,20 +75,20 @@ double normL2_ten(ten a){
 }
 //only in 3D for the cross product 
 #if dimension == 3
-pts cross_pts(pts a,pts b){
-  pts c = {a.y*b.z-a.z*b.y, 
+coord cross_pts(coord a,coord b){
+  coord c = {a.y*b.z-a.z*b.y, 
            a.z*b.x-a.x*b.z, 
            a.x*b.y-a.y*b.x};
 #elif dimension == 2
-double cross_pts(pts a,pts b){
+double cross_pts(coord a,coord b){
   double c = a.x*b.y-a.y*b.x;
 #endif
   return c;
 }
 
-pts EigenValue(ten A){
+coord EigenValue(ten A){
   double Delta = pow(A.x.x,2.) - 2.*A.x.x*A.y.y+pow(A.y.y,2.) +4.*A.x.y*A.y.x;
-  pts Eig = {0.,0.};
+  coord Eig = {0.,0.};
   if(Delta > 0){
     Eig.x = 1./2.*(  A.x.x + A.y.y - sqrt( Delta ));
     Eig.y = 1./2.*(  A.x.x + A.y.y + sqrt( Delta ));

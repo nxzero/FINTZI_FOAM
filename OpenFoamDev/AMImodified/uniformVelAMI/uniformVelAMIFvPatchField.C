@@ -232,7 +232,6 @@ void Foam::uniformVelAMIFvPatchField<Type>::updateCoeffs()
             i_ = (i_+1) % (NOC_);
 
             if(i_ == 0){
-
                 scalar magU = this->magUbarAve(U);
                 Info<<"velocity average in the flow dir :" <<magU<< nl;
                 Utol_ = utol;
@@ -252,17 +251,7 @@ void Foam::uniformVelAMIFvPatchField<Type>::updateCoeffs()
                     jumpTable2_ *=  round((1   - Relax_ *  (magU  -  Ubar_)/Ubar_)*a)/a;
                     Info<<"The Jump is now constant at  :" << jumpTable2_ << " with an error of :"<< (magU  -  Ubar_)<<" on the velocity" << nl;
                 }
-
-                // file << magU << " " << jumpTable2_ << std::endl;
                 this->jump_ *= jumpTable2_;
-                // if(jumpTable2_ < 0){
-                //     Info<<"The new Jump is  :" << 0 << nl;
-                //     this->jump_ = this->jump_*0;
-                // }else if(jumpTable2_ > 1000){
-                //     jumpTable2_ = 1000;
-                //     this->jump_ = this->jump_*jumpTable2_;
-                //     Info<<"The new Jump is  :" << jumpTable2_ << nl;
-                // }
             
             }else{
                 this->jump_ *= jumpTable2_;

@@ -104,6 +104,8 @@ class Analyse_Parametrique():
         self.doREV = 1
         self.mPatchs = 0
         self.DeltaP = 1
+        ############# Init of Dp doc #######################
+        os.system("sed -i 's/Dp.*/Dp    1;/g' system/Dp")
         #############Parametre de la BC modifie #######################
         self.Relax = 1
         self.UtolBC = 0.01
@@ -733,7 +735,9 @@ class Analyse_Parametrique():
                 self.forces.append('forces_'+Cyl[1])
                 self.forces.append('{')
                 self.forces.append('\ttype            FirstMoment;')
+                # self.forces.append('\ttype            forces;')
                 self.forces.append('\tlibs            (libFirstMoment);')
+                # self.forces.append('\tlibs            (libforces);')
                 self.forces.append('\twriteControl    timeStep;')
                 self.forces.append('\twriteInterval    $wrinteEachTimeStep;')
                 self.forces.append('\texecuteControl    timeStep;')
@@ -752,7 +756,9 @@ class Analyse_Parametrique():
                 self.forces.append('forces_'+Sphere[1])
                 self.forces.append('{')
                 self.forces.append('\ttype            FirstMoment;')
+                # self.forces.append('\ttype            forces;')
                 self.forces.append('\tlibs            (libFirstMoment);')
+                # self.forces.append('\tlibs            (libforces);')
                 self.forces.append('\twriteControl    timeStep;')
                 self.forces.append('\twriteInterval    $wrinteEachTimeStep;')
                 self.forces.append('\texecuteControl    timeStep;')

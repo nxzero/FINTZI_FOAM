@@ -41,12 +41,15 @@ def F_g(ReL,Theta):
     B = Zg(X) -Cg(X) + Zg(Y) -Cg(Y)
     return (np.cos(Theta) * B + Zg(Y) - Zg(X)) * np.sin(Theta)
 
+# Torque KC
 def T_CC(Re,Chi,Theta) :
     Re = np.array(Re)
     Chi = np.array(Chi)
     ReL = Re * Chi / 2.
     A = - 0.5* math.pi/np.log(Chi)**2.
     return  A * F_g(ReL,Theta)
+
+
 def T_CC_lim(Re,Chi,Theta) :
     Theta = np.array(Theta) /360. * 2.*math.pi
     Re = np.array(Re)
@@ -488,7 +491,7 @@ def Frond_L(ReL,Theta):
     return F_L(ReL,Theta) - F_Ls(Theta)
 
 # deuxieme forme pour D  et L
-
+# Drag and lift of K and C 
 def D2(Re,Chi,Theta): 
     ReL = Chi*Re/2.
     return Ds(Chi,Theta)*(1 + Frond_D(ReL,Theta) / np.log(Chi))
@@ -497,6 +500,9 @@ def L2(Re,Chi,Theta): # diverge en 0
     ReL = Chi*Re/2.
     return Ls(Chi,Theta) *(1 + Frond_L(ReL,Theta) / np.log(Chi))
 
+
+
+# 
 def D2_old(Re,Chi,Theta): 
     ReL = Chi*Re/2.
     return D(1e-7,Chi,Theta)*(1 + Frond_D(ReL,Theta) / np.log(Chi))
@@ -616,23 +622,6 @@ def F_para_modi_myfit(Re,Chi,theta):
     return (F_0_myfit(Re,Chi) +2*math.pi* C1 *np.sin(theta)**2  *(Re*Chi/2.)**C2)* np.cos(theta)
 
 
-def T_myfit(Re,Chi):
-    C1,C2,C3,C4,C5,C6 = -0.22700853,  3.70513007,  1.19468021,  1.,          1.,         -1.     
-    Re = np.array(Re)
-    Chi = np.array(Chi)
-    ReL = Re*Chi/2.
-    CA = 2.
-    A = 5./24.*math.pi *ReL /(0.5+ReL**1.23761302)**0.5
-    B = 1.
-    C = (-0.54690185 + 0.00967742 * ReL**2) * np.exp(-0.0542999*ReL)   
-    D = C1 * np.exp(-C3*ReL**C2)#(C1 + C2 * ReL**3) * np.exp(-C3*ReL)   
-    # D = (C2 + C1 * ReL**3) * np.exp(C3*ReL)   /np.log(CA*Chi)**4
-    # B = Chi/np.log(CA*Chi)**2
-    # C = (2*np.log(2)+(C1-CA*Re**0.5)*np.exp(-C3*Re))/(np.log(CA*Chi)**3)
-    # C = (2*np.log(2)+(C1+CA*Re**0.5)*np.exp(-C3*Re*((Chi-2)*C5-C4)))/(np.log(CA*Chi)**3)
-    # C = ((C3) *C4*ReL**2 *np.exp(-C1*ReL) )/(np.log(CA*Chi)**3)
-    # D = ((C1-C2*Re**C4)*np.exp(-C3*Re))/(np.log(C2*Chi)**3)
-    return A * (B/np.log(CA*Chi)**2+C /np.log(CA*Chi)**3+D /np.log(CA*Chi)**4) 
 def T_myfit(Re,Chi):
     Re = np.array(Re)
     Chi = np.array(Chi)

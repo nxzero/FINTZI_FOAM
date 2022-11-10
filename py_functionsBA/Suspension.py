@@ -32,7 +32,7 @@ class Suspension:
         self.rho_f = self.parameters['rho_f']      #//int(self.Para['Nb'].values)
         self.rho_d = self.parameters['rho_d']      #//int(self.Para['Nb'].values)
         self.g = self.parameters['g']      #//int(self.Para['Nb'].values)
-        self.L0 = self.parameters['Ls']      #//float(self.Para['Ls'].values)
+        self.Ls = self.parameters['Ls']      #//float(self.Para['Ls'].values)
         self.dt = self.parameters['dtprint']      #//float(self.Para['dt'].values)
         self.g = 1.
         # setting up the data 
@@ -44,7 +44,7 @@ class Suspension:
         # set the mean diameters of bubbles 
         self.D = self.parameters['D']
         self.R = self.parameters['D']/2
-        self.dp = self.L0/math.sqrt(self.Nb)
+        self.dp = self.Ls/math.sqrt(self.Nb)
         self.Gs_ad = np.linspace(-1,2,50) # adimensionalised range
         #rearranging Pos tab
 
@@ -144,7 +144,7 @@ class Suspension:
     #     H, valuex = np.histogram(data.values, bins =bins, range=[0,end])
     #     x1 = (valuex[:-1] + valuex[1:])/2
     #     number_of_samples = len(data.index) 
-    #     density_of_particles = 1/self.L0**2
+    #     density_of_particles = 1/self.Ls**2
     #     weight = math.pi*(valuex[1:]**2-valuex[:-1]**2) *  self.pair_number * number_of_samples * density_of_particles
     #     self.d_nrb = x1
     #     self.Pd_nrb = H
@@ -159,7 +159,7 @@ class Suspension:
         H, valuex = np.histogram(Data.distmin.values, bins =bins,range=[0,Dmax])
         x1 = (valuex[:-1] + valuex[1:])/2
         number_of_samples = len(Data.index) 
-        density_of_particles = 1/self.L0**2
+        density_of_particles = 1/self.Ls**2
         weight = math.pi*(valuex[1:]**2-valuex[:-1]**2) *  self.pair_number * number_of_samples * density_of_particles
         self.d_nbr = x1
         self.Pd_nbr = H
@@ -276,7 +276,7 @@ class Suspension:
         H, valuex = np.histogram(self.DataRaw.stack().values, bins =bins,range=[0,Dmax])
         x1 = (valuex[:-1] + valuex[1:])/2
         number_of_samples = len(self.DataRaw.index) 
-        density_of_particles = 1/self.L0**2
+        density_of_particles = 1/self.Ls**2
         weight = math.pi*(valuex[1:]**2-valuex[:-1]**2) *  self.pair_number * number_of_samples * density_of_particles
         self.r = x1
         self.Pr = H/weight
@@ -289,7 +289,7 @@ class Suspension:
             DataB = self.DataRaw < self.D * G
             Nc=((DataB != DataB.shift(1)) & DataB).sum().sum()# number of contact
             Dt = self.Data.t.values[-1] - self.tmin
-            vol = self.L0**2
+            vol = self.Ls**2
             self.Hz.append(Nc /Dt  * math.sqrt(self.D/self.parameters['g']))
             loadbar(i+1, len(self.Gs), prefix='Freq')
 
@@ -298,7 +298,7 @@ class Suspension:
         DataB = self.DataRaw < self.D * G
         Nc=((DataB != DataB.shift(1)) & DataB).sum().sum()# number of contact
         Dt = self.Data.t.values[-1] - self.tmin
-        vol = self.L0**2
+        vol = self.Ls**2
         self.HzG = Nc /(Dt*self.Nb)  * math.sqrt(self.D/self.parameters['g'])
         return self
     

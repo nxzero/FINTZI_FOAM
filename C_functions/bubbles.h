@@ -1,12 +1,7 @@
 #include "algebra.h"
 #include "tag.h"
-#if dimension == 2
-#define POS {x,y} 
-#define P x,y
-#else 
 #define POS {x,y,z} 
 #define P x,y,z
-#endif
 FILE * Dist_x;
 char name_x[] = "Dist_x.csv";
 char name_y[] = "Dist_y.csv";
@@ -17,7 +12,7 @@ char name_z[] = "Dist_z.csv";
 #endif
 typedef struct {
   double omega_z,J_z,J_y,J_x,J_x_y,vol,diss,defnorm,ct;
-  pts EigVal,pos,vel,velc,distmin,per;
+  coord EigVal,pos,vel,velc,distmin,per;
   ten EigVec,Sig;
   int tagmin,tag,tagmax;
   double pressure;
@@ -32,20 +27,20 @@ typedef struct {
 /** functoin that return 1 if the rank of the current process is 0 or if there is only one process**/
 
 
-pts POS_perio(pts pos,pts per){
+coord POS_perio(coord pos,coord per){
   foreach_dimension(){
-    if(per.x) pos.x    = pos.x>0?pos.x:pos.x+L0;
+    if(per.x) pos.x = pos.x>0?pos.x:pos.x+L0;
   }
   return pos;
 }
-double dist_perio(pts a,pts b){
+double dist_perio(coord a,coord b){
   foreach_dimension(){
     if(a.x>0) b.x = (b.x<a.x-L0/2)*L0+b.x;
     else b.x = (b.x>a.x+L0/2)*(-L0)+b.x;
   }
   return normL2_pts(diff_pts(a,b));
 }
-pts dist_perioPts(pts a,pts b){
+coord dist_perioPts(coord a,coord b){
   foreach_dimension(){
     if(a.x>0) b.x = (b.x<a.x-L0/2)*L0+b.x;
     else b.x = (b.x>a.x+L0/2)*(-L0)+b.x;
@@ -54,32 +49,24 @@ pts dist_perioPts(pts a,pts b){
 }
 // check if the drop is perio or not 
 void isperio(scalar s, scalar tag ,int tg,int tagi, cg n[] ){
-  // declaration of variables 
-  #if dimension == 2
-  int per1_x[tg],per2_x[tg],per1_y[tg],per2_y[tg];
-  for (int i = 0; i < tg; i++) per1_y[i]=per2_y[i]=per1_x[i]=per2_x[i]=0;
-  foreach(reduction(max:per1_x[:tg]) reduction(max:per2_x[:tg]) 
-          reduction(max:per1_y[:tg]) reduction(max:per2_y[:tg]) ){
-  #elif dimension == 3
-  int per1_x[tg],per2_x[tg],per1_y[tg],per2_y[tg],per1_z[tg],per2_z[tg];
-  for (int i = 0; i < tg; i++) per1_y[i]=per2_y[i]=per1_x[i]=per2_x[i]=per1_z[i]=per2_z[i]=0;
-  foreach(reduction(max:per1_x[:tg]) reduction(max:per2_x[:tg]) 
-          reduction(max:per1_y[:tg]) reduction(max:per2_y[:tg]) 
-          reduction(max:per1_z[:tg]) reduction(max:per2_z[:tg]) ){
-  #endif
+  coord per1[tg],per2[tg];
+  for (int i = 0; i < tg; i++) 
+    foreach_dimension() {
+      per1[i].x = 0;
+      per2[i].x = 0;
+    }
+  foreach(reduction(max:per1[:tg]) reduction(max:per2[:tg]))
     if (s[] != nodata && dv() > 0.  && s[]>=EPS) {
       int i=tag[]-1;
-      pts pos = POS;
+      coord pos = POS;
       foreach_dimension(){
-        if(pos.x>(L0/2-D)) per1_x[i]=1;
-        else if(pos.x<-(L0/2-D)) per2_x[i]=1;
+        if(pos.x>(L0/2-D)) per1[i].x=1;
+        else if(pos.x<-(L0/2-D)) per2[i].x=1;
       }
     }
-  }
-  for (int i = 0; i < tg; i++){
+  for (int i = 0; i < tg; i++) 
     foreach_dimension()
-      n[tagi+i].per.x = (per1_x[i]&&per2_x[i]);
-  }
+      n[tagi+i].per.x = (per1[i].x && per2[i].x);
 }
 
 void pos_vol_and_vel(scalar s, scalar tag ,int tg,int tagi,cg n[]){
@@ -101,7 +88,7 @@ void pos_vol_and_vel(scalar s, scalar tag ,int tg,int tagi,cg n[]){
       int i=tag[]-1;
       volume[i] += dv()*s[];
       pressure[i] += p[]*s[]*dv();
-      pts pos = POS;
+      coord pos = POS;
       pos = POS_perio(pos,n[tagi+i].per);
       foreach_dimension(){
         pos_x[i]    += dv()*s[]*pos.x;
@@ -136,9 +123,9 @@ void omega(scalar s, scalar tag ,int tg,int tagi,cg n[]){
   #endif
     if (s[] != nodata && dv() > 0. && s[]>=EPS){
       int i=tag[]-1;
-      pts pos = POS;
+      coord pos = POS;
       pos = POS_perio(pos,n[tagi+i].per);
-      pts posP = diff_pts(pos,n[tagi+i].pos);
+      coord posP = diff_pts(pos,n[tagi+i].pos);
       J_z[i] += dv()*s[]*(pow(posP.x,2)+pow(posP.y,2));
       omega_z[i] +=  dv()*s[]*(posP.x * u.y[] - posP.y * u.x[]); 
       J_x_y[i] -= dv()*s[]*posP.x*posP.y;
@@ -187,9 +174,9 @@ void omega2(scalar s, scalar tag ,int tg,int tagi,cg n[]){
   #endif
     if (s[] != nodata && dv() > 0. && s[]>=EPS){
       int i=tag[]-1;
-      pts pos = POS;
+      coord pos = POS;
       pos = POS_perio(pos,n[tagi+i].per);
-      pts posP = diff_pts(pos,n[tagi+i].pos);
+      coord posP = diff_pts(pos,n[tagi+i].pos);
       J_z[i] += dv()*s[]*(pow(posP.x,2)+pow(posP.y,2));
       omega_z[i] +=  dv()*s[]*(posP.x * u.y[] - posP.y * u.x[]); 
       J_x_y[i] -= dv()*s[]*posP.x*posP.y;
@@ -308,8 +295,8 @@ void assign_tags_from_last_step (cg datat0[],cg datat1[],int tagi){
   for(int i=0;i<tagi;i++) tags_avail[i]=0;
   for (int j = 0; j < datat0[0].tagmax; j++)
   {
-    pts np = datat0[j].pos;
-    pts vp = datat0[j].vel;
+    coord np = datat0[j].pos;
+    coord vp = datat0[j].vel;
     double dt = dtprint;
     np = add_pts(np,mult_pts(vp,dt)); // euleur schem
     #if dimension == 2
@@ -321,7 +308,7 @@ void assign_tags_from_last_step (cg datat0[],cg datat1[],int tagi){
     for (int k = j; k < (tagi+j); k++)
     {
       int idx = k % tagi;
-      pts np1 = datat1[idx].pos;
+      coord np1 = datat1[idx].pos;
       double dist = dist_perio(np,np1);
       if(dist<r){
         datat1[idx].tag = datat0[j].tag;
@@ -384,10 +371,10 @@ void print_pair_dist(cg data[],cg data0[],int tagi,int step, float t){
 
   for (int k = 0; k < tagi; k++)
   {
-    pts npi = data_orderred[k].pos; 
+    coord npi = data_orderred[k].pos; 
     for (int j = k+1; j<tagi;j++){
-      pts npj = data_orderred[j].pos;
-      pts distPts = dist_perioPts(npi,npj);
+      coord npj = data_orderred[j].pos;
+      coord distPts = dist_perioPts(npi,npj);
       double dist = normL2_pts(distPts);
       foreach_dimension() fprintf(Dist_x,",%g",distPts.x);
       if(dist<normL2_pts(data_orderred[k].distmin)){
