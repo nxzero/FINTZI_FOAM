@@ -7,8 +7,10 @@ import re
 import numpy as np
 import pandas as pd
 import better_py_functions.PPcyl as pc
+RESULT_DIR='/home/irsrvshare1/R04/RheoPipe/fintzin/CYLINDERS_PROJECT.backup/results/'
+
 class PPsus():
-    def __init__(self,namecase,forces_dir='forces',resultdir = '../results',para = dict()):
+    def __init__(self,namecase,forces_dir='forces',resultdir = RESULT_DIR,para = dict()):
     # def Postprocess(self, namedir):
         self.namecase = namecase
         self.resultsdir = resultdir

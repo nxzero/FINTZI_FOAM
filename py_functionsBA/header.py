@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import filecmp
 import time
 import matplotlib as mpl
+RESULT_DIR='/home/irsrvshare1/R04/RheoPipe/fintzin/CYLINDERS_PROJECT.backup/results/'
 
 def loadbar(iterration, total, prefix='',suffix='',decimals=1, length=50,fill='>'):
     if iterration == 0:

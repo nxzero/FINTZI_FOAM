@@ -9,19 +9,21 @@ import numpy as np
 from numpy import linalg as LA
 # import matplotlib.pyplot as plt
 import py_functions.moment_Cox as mc
+RESULT_DIR='/home/irsrvshare1/R04/RheoPipe/fintzin/CYLINDERS_PROJECT.backup/results/'
+
 class Study():
-    def __init__(self,namestud,forcestopbot = False,maindir='forces'):
+    def __init__(self,namestud,forcestopbot = False,maindir='forces',results_dir=RESULT_DIR):
     # def Postprocess(self, namedir):
         self.namestud = namestud
         self.forcestopbot = forcestopbot
         if not namestud == '':
-            self.namedir = '../results/'+namestud+'/'
-            sys.path.append('./'+self.namedir)
+            self.namedir = results_dir+namestud+'/'
+            sys.path.append(self.namedir)
             import parameters_for_this_study as pstud
             from importlib import reload
             reload(pstud)
             self.parameters = pstud.parameters
-            sys.path.remove('./'+self.namedir)
+            sys.path.remove(self.namedir)
             self.maindir = maindir
             self.studies_datas = {}
             self.para_name = self.parameters['para_name']

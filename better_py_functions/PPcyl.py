@@ -7,20 +7,21 @@ import re
 import numpy as np
 import numpy.linalg as LA
 import pandas as pd
+RESULT_DIR='/home/irsrvshare1/R04/RheoPipe/fintzin/CYLINDERS_PROJECT.backup/results/'
 class PPcyl():
-    def __init__(self,namecase,forces_dir='forces',resultdir = '../results',para = dict()):
+    def __init__(self,namecase,forces_dir='forces',resultdir = RESULT_DIR,para = dict()):
     # def Postprocess(self, namedir):
         self.namecase = namecase
         self.resultsdir = resultdir
         self.namedir = self.resultsdir+namecase+'/'
         # print(self.namedir)
-        sys.path.append('./'+self.namedir)
+        sys.path.append(self.namedir)
         import parameters_for_this_study as pstud
         from importlib import reload
         reload(pstud)
         pstud.parameters.update(para)
         self.parameters = pstud.parameters
-        sys.path.remove('./'+self.namedir)
+        sys.path.remove(self.namedir)
         self.forces_dir = self.resultsdir + self.namecase +'/'+forces_dir +'/'
         self.para_name = self.parameters['para_name']
         self.ori = np.array([6,6,6])
@@ -64,7 +65,7 @@ class PPcyl():
         self.forces.columns = ['t','x','y','z','Px','Py','Pz','Vx','Vy','Vz']
         for col in self.forces.columns:
             if self.forces[col].dtype == object: 
-                self.forces[col] = self.forces[col].str.replace('[()]','').astype(float) 
+                self.forces[col] = self.forces[col].str.replace('[()]','',regex=True).astype(float) 
         # drag on a sphere of same vol
         self.forcesAD = self.forces/self.F_h
         self.forcesD = self.forces/self.adimensionneur
@@ -78,7 +79,8 @@ class PPcyl():
         self.moments.columns = ['t','x','y','z','Px','Py','Pz','Vx','Vy','Vz']
         for col in self.moments.columns:
             if self.moments[col].dtype == object: 
-                self.moments[col] = self.moments[col].str.replace('[()]','').astype(float)
+                self.moments[col] = self.moments[col].str.replace('[()]','',regex=True).astype(float)
+
         self.momentsD = self.moments/self.adimensionneur2
         self.momentsAD = self.moments/self.T_h
         
@@ -91,7 +93,8 @@ class PPcyl():
         self.firstmoments.columns = ['t','xx', 'xy', 'xz', 'yx', 'yy', 'yz', 'zx', 'zy', 'zz','Pxx','Pxy','Pxz','Pyx','Pyy','Pyz','Pzx','Pzy','Pzz','Vxx','Vxy','Vxz','Vyx','Vyy','Vyz','Vzx','Vzy','Vzz']
         for col in self.firstmoments.columns:
             if self.firstmoments[col].dtype == object: 
-                self.firstmoments[col] = self.firstmoments[col].str.replace('[()]','').astype(float)
+                self.firstmoments[col] = self.firstmoments[col].str.replace('[()]','',regex=True).astype(float)
+                
         self.firstmomentsD = self.firstmoments/self.adimensionneur2
 
 
