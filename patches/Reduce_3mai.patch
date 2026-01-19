@@ -1,0 +1,125 @@
+1 patch for repository http://basilisk.fr/basilisk:
+
+patch e3408417ecc0e8b05eaf0ca14e5829893c9a279f
+Author: nicolas.fintzi@etu.sorbonne-universite.fr
+Date:   Fri May  3 10:11:04 UTC 2024
+  * Tensor reduction macro
+
+
+New patches:
+
+[Tensor reduction macro
+nicolas.fintzi@etu.sorbonne-universite.fr**20240503101104
+ Ignore-this: 9f7a4056259f239d00d12eb36a6bbb19
+] hunk ./src/ast/translate.c 3835
+-	    if (strcmp (type, "coord") &&
++	    if (strncmp (type, "coord",5) &&
+hunk ./src/ast/translate.c 3851
+-	      ast_after (n, "mpi_all_reduce_array(", t->start, ",", type, ",");
+-	      mpi_operator (n, reduction->child[2]);
+-	      ast_right_terminal (n)->after = ast_str_append (array, ast_right_terminal (n)->after);
+-	      ast_after (n, ");");
++        	if(strncmp (type, "coord",5)) {
++	      		ast_after (n, "mpi_all_reduce_array(", t->start, ",", type, ",");
++	      		mpi_operator (n, reduction->child[2]);
++	      		ast_right_terminal (n)->after = ast_str_append (array, ast_right_terminal (n)->after);
++	      		ast_after (n, ");");
++			} else {
++				ast_after (n, "mpi_all_reduce_array((double *)", t->start, ",double,");
++				mpi_operator (n, reduction->child[2]);
++				char s[100];
++				snprintf (s,100, "sizeof(%s)/(sizeof(%s))", t->start,type);
++	    		ast_after (n,s,");");
++			}
+hunk ./src/ast/translate.c 3865
+-	      char s[20] = "1";
+-	      ast_after (n, "mpi_all_reduce_array(&", t->start);
+-	      if (strcmp (type, "coord"))
+-		ast_after (n, ",", type);
+-	      else {
+-		TranslateData * d = data;
+-		snprintf (s, 19, "%d", d->dimension);
+-		ast_after (n, ".x,double");
+-	      }
++	      char s[100] = "1";
++	    	if (strncmp (type, "coord",5)){
++	        	ast_after (n, "mpi_all_reduce_array(&", t->start,",", type);
++			} else {
++	        	ast_after (n, "mpi_all_reduce_array((double *)&", t->start,",double");
++				snprintf (s, 100, "sizeof(%s)/(sizeof(double))", t->start);
++	      	}
+hunk ./src/test/mpi-reduce.c 3
++
++typedef struct{
++  coord x,y,z;
++}coord2;
++typedef struct{
++  coord2 x,y,z;
++}coord3;
++
++
+hunk ./src/test/mpi-reduce.c 36
+-  foreach (reduction(+:p))
+-    foreach_dimension()
++  coord3 p3 = {0};
++  foreach (reduction(+:p) reduction(+:p3))
++    foreach_dimension(){
+hunk ./src/test/mpi-reduce.c 40
+-  fprintf (qerr, "%g %g\n", p.x, p.y);
++      p3.x.x.x++;
++    }
++  fprintf (qerr, "%g %g %g %g\n", p.x, p.y, p3.x.x.x, p3.y.y.y);
++
++  // Coord reduction
++
++  #define arr_size 10
++  coord P[arr_size] = {{0}};
++  coord3 P3[arr_size] = {{{{0}}}};
++  foreach (reduction(+:P[:arr_size]) reduction(+:P3[:arr_size])) 
++    foreach_dimension(){
++      P[(int)(10*fabs(x))].x++;
++      P3[(int)(10*fabs(x))].x.x.x++;
++    }
++
++  char * _x="x",* _y="y";
++  foreach_dimension(){
++    fprintf (qerr,"P.%s : ", _x);
++    for (int i = 0; i < arr_size; i++) 
++        fprintf (qerr, "%g ", P[i].x);
++    fputc ('\n', qerr);
++    fprintf (qerr,"P.%s.%s.%s : ", _x, _x,_x);
++    for (int i = 0; i < arr_size; i++) 
++        fprintf (qerr, "%g ", P3[i].x.x.x);
++    fputc ('\n', qerr);
++  }
++
+hunk ./src/test/mpi-reduce.ref 3
+-4096 4096
+-0.015625 1 1.98438
+-384 448 384 448 384 384 448 384 448 384 
+-4096 4096
+-0.015625 1 1.98438
+-384 448 384 448 384 384 448 384 448 384 
+-4096 4096
++4096 4096 4096 4096
++P.x : 384 448 384 448 384 384 448 384 448 384 
++P.x.x.x : 384 448 384 448 384 384 448 384 448 384 
++P.y : 384 448 384 448 384 384 448 384 448 384 
++P.y.y.y : 384 448 384 448 384 384 448 384 448 384 
+
+Context:
+
+['Point point' is deprecated and has been replaced with foreach_point/region
+Stephane Popinet <popinet@basilisk.fr>**20240312134012
+ Ignore-this: 1d850dd0cfd4d6d1ae6e1cdf2f1b7722
+] 
+[Restructured foreach stencils in preparation for GPUs
+Stephane Popinet <popinet@basilisk.fr>**20240122173306
+ Ignore-this: 4696e1a98ff349a0eb5320f18cde5623
+] 
+[TAG release 24-01-15
+Stephane Popinet <popinet@basilisk.fr>**20240312093302
+ Ignore-this: e1645d1c630b49b8753829124796e7d0
+] 
+Patch bundle hash:
+54d576e522cfc3013a8479339079515860f1f60f

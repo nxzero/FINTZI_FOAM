@@ -8,17 +8,26 @@ rm -rf log.*
 mv system/blockMeshDict.$1 system/blockMeshDict
 runApplication blockMesh
 mv system/blockMeshDict system/blockMeshDict.$1
+# Meshing in parallel
+#---------------------
+
 
 #numberOfSubdomains=4
 #sed -i 's/^numberOfSubdomains.*/numberOfSubdomains '$numberOfSubdomains';/' system/decomposeParDict
 runApplication decomposePar -force
 mv log.decomposePar log.decomposeParMesh
 
+mv system/snappyHexMeshDict.$2 system/snappyHexMeshDict
 runParallel snappyHexMesh -overwrite
+mv system/snappyHexMeshDict system/snappyHexMeshDict.$2
 
 runApplication reconstructParMesh -constant
 rm -rf processor*
+
+mv system/topoSetDict.$2 system/topoSetDict
 runApplication topoSet
+mv system/topoSetDict system/topoSetDict.$2
+
 runApplication createPatch -overwrite
 runApplication renumberMesh -overwrite
 
@@ -56,3 +65,6 @@ runApplication foamLog log.${application}
 simpleFoam -postProcess -latestTime > log.forces
 sed -i 's/SRFSimpleFoam/simpleFoam/' system/controlDict
 #------------------------------------------------------------------------------
+
+# foamToVTK > log.foamToVTK
+paraFoam -touch-all

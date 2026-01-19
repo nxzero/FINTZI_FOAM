@@ -7,6 +7,9 @@ import numpy as np
 import math
 import sys
 import pandas as pd
+from stl import mesh
+import pyvista as pv
+
 from py_functions.generation import *
 #sync
 class Analyse_Parametrique():
@@ -36,6 +39,8 @@ class Analyse_Parametrique():
         self.Re 	= 25
         self.ksi 	= 3
         self.Theta 	= 45
+        self.Theta2 	= 45
+        self.ThetaBend 	= 45
         self.ThetaU     = 0
         self.r 		= 0.5
         self.U 		= 1
@@ -77,6 +82,9 @@ class Analyse_Parametrique():
         self.xCenter   	=self.x/2
         self.yCenter   	=self.y/2
         self.zCenter   	=self.z/2
+        self.xmCenter   	=self.x/2
+        self.ymCenter   	=self.y/2
+        self.zmCenter   	=self.z/2
         
         #Parametre materiaux 
         #couche limite 
@@ -90,6 +98,7 @@ class Analyse_Parametrique():
         self.ReMesh 	        = 1
         self.Auto_refinement    = [0,100]
         self.whichMesh          = 1
+        self.whichSnap          = 1
         
         ######### For continuing study  ######
         self.REV = Six_pack()
@@ -139,11 +148,15 @@ class Analyse_Parametrique():
             self.set_parameters_dictionnary(P)
             print(self.para_name+' = '+str(self.parameters[self.para_name]))
             os.system(self.bashDir+'Allclean')
-            self.eMeshGenerator()
+            if self.whichSnap == 2:
+                self.bend_cylinder()
+            else: 
+                self.eMeshGenerator()
             self.print_parameters_for_OF()
-            os.system(self.bashDir+'Allrun '+str(self.whichMesh))
+            os.system(self.bashDir+'Allrun '+str(self.whichMesh)+' '+str(self.whichSnap))
             self.cp_dir_and_files(P)
             self.parameters_for_Studies(P)
+            
 
     def run_first_step(self):
         """This function run only the first step of a study.
@@ -155,9 +168,12 @@ class Analyse_Parametrique():
         P  =self.parameters_list[0]
         self.set_parameters_dictionnary(P)
         print(self.para_name+' = '+str(self.parameters[self.para_name]))
-        self.eMeshGenerator()
+        if self.whichSnap == 2:
+            self.bend_cylinder()
+        else:
+            self.eMeshGenerator()
         self.print_parameters_for_OF()
-        os.system(self.bashDir+'Allrun '+str(self.whichMesh))
+        os.system(self.bashDir+'Allrun '+str(self.whichMesh)+' '+str(self.whichSnap))
         self.Cyls_for_Studies(P)
         self.create_dat_file()
         self.cp_dir_and_files(P)
@@ -181,7 +197,7 @@ class Analyse_Parametrique():
             self.set_parameters_dictionnary(P)
             print(self.para_name+' = '+str(self.parameters[self.para_name]))
             self.print_parameters_for_OF()
-            os.system(self.bashDir+'AllrunNotrestore0Dir  '+str(self.whichMesh))
+            os.system(self.bashDir+'AllrunNotrestore0Dir  '+str(self.whichMesh)+' ' + str(self.whichSnap)+ ' '+str(self.whichSnap))
             self.create_dat_file()
             self.cp_dir_and_files(P)
             self.parameters_for_Studies(P)
@@ -262,11 +278,11 @@ class Analyse_Parametrique():
             print("mean fluid vel :",self.Uf)
             self.set_parameters_dictionnary(P)
             self.print_parameters_for_OF()
-            os.system(self.bashDir+'Allrun1 '+str(self.whichMesh))
+            os.system(self.bashDir+'Allrun1 '+str(self.whichMesh)+' ' + str(self.whichSnap))
             self.printPatch()
             self.forcesFunc('p','U')
-            os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh))
-            os.system(self.bashDir+'Allrun2 '+str(self.whichMesh))
+            os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh)+' ' + str(self.whichSnap))
+            os.system(self.bashDir+'Allrun2 '+str(self.whichMesh) + ' '+str(self.whichSnap+' ' + str(self.whichSnap)))
             self.Cyls_for_Studies(P)
             self.create_dat_file()
             self.cp_dir_and_files(P)
@@ -288,10 +304,10 @@ class Analyse_Parametrique():
             self.wrinteEachTimeStep = self.EndTime
             self.set_parameters_dictionnary(P)
             self.print_parameters_for_OF()
-            os.system(self.bashDir+'Allrun1 '+str(self.whichMesh))
+            os.system(self.bashDir+'Allrun1 '+str(self.whichMesh) + ' '+str(self.whichSnap))
             self.printPatch()
             self.forcesFunc('p','U')
-            os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh))
+            os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh) + ' '+str(self.whichSnap))
             os.system(self.bashDir+'Allrun2bis')
             dirs = pd.Series(os.listdir('processor0')) 
             self.EndTime  = float(dirs[dirs.str.isdigit()].max()) + self.TimePimple
@@ -379,11 +395,11 @@ class Analyse_Parametrique():
         print("mean fluid vel :",self.Uf)
         self.set_parameters_dictionnary(P)
         self.print_parameters_for_OF()
-        os.system(self.bashDir+'Allrun1 '+str(self.whichMesh))
+        os.system(self.bashDir+'Allrun1 '+str(self.whichMesh) + ' '+str(self.whichSnap))
         self.printPatch()
         self.forcesFunc('p','U')
-        os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh))
-        os.system(self.bashDir+'Allrun2 '+str(self.whichMesh))
+        os.system(self.bashDir+'Allrun1bis '+str(self.whichMesh) + ' '+str(self.whichSnap))
+        os.system(self.bashDir+'Allrun2 '+str(self.whichMesh) + ' '+str(self.whichSnap))
         self.Cyls_for_Studies(P)
         self.create_dat_file()
         self.cp_dir_and_files(P)
@@ -481,7 +497,20 @@ class Analyse_Parametrique():
         self.omega_para = self.Re_omega_para*self.nu/(self.parameters['r']*self.parameters['r']*2)
        
             
-
+        ######### For bended cylinder #########################"
+        self.ThetaBend = self.parameters['ThetaBend']
+        self.Theta2 = self.parameters['Theta2']
+        
+        P = [- np.cos(self.Theta2 * np.pi /180 ) *np.cos(self.Theta * np.pi /180 ), 
+            np.cos(self.Theta2 * np.pi /180 ) *np.sin(self.Theta * np.pi /180 ),
+            np.sin(self.Theta2 * np.pi /180 )]
+        
+        R = self.length   / (self.ThetaBend * np.pi /180)
+        
+        offset = np.sin(self.ThetaBend * np.pi /180 )/(self.ThetaBend * np.pi /180 ) *(R**2+self.r**2/4)/R #Ibelive the 4 is there
+        self.xmCenter = self.xCenter + P[0] * offset
+        self.ymCenter = self.yCenter + P[1] * offset
+        self.zmCenter = self.zCenter + P[2] * offset
     
     def update_parameters_dictionnary(self):
         """This function refresh all the parameters in the parameters dict with the calculated attribute of the class.
@@ -499,7 +528,10 @@ class Analyse_Parametrique():
             "eta"       :self.eta,
             "GapLevel"  :self.GapLevel,
             "whichMesh" :self.whichMesh,
+            "whichMesh" :self.whichSnap,
             "Theta"     :self.Theta,
+            "Theta2"     :self.Theta2,
+            "ThetaBend" :self.ThetaBend,
             "ThetaU"    :self.ThetaU,
             "length"    :self.length,
             "r"         :self.r,
@@ -513,6 +545,9 @@ class Analyse_Parametrique():
             "xCenter"   :self.xCenter,
             "yCenter"   :self.yCenter,
             "zCenter"   :self.zCenter,
+            "xmCenter"   :self.xmCenter,
+            "ymCenter"   :self.ymCenter,
+            "zmCenter"   :self.zmCenter,
             #level of eMesh rafineme,
             "ER"        :self.ER,
             "Re"        :self.Re,
@@ -574,13 +609,13 @@ class Analyse_Parametrique():
             M = list(zip(M_x,M_y,M_z))
             name="cercle"+str(numero_du_cercle)
             self.eMesh(M,name,1)
+            
         self.eMeshForSnappy()
     
     def eMeshRVE(self):
         """This funciton generate the cylinders packing and every things that are needed by Snappy Hex Mesh."""
         if self.doREV == 1:
             self.REV.run()
-                
         os.system('rm -rf constant/triSurface/*')
         for Cyl,i in zip(self.REV.Cyls,range(len(self.REV.Cyls))):
             for key in Cyl[0].keys:
@@ -629,18 +664,18 @@ class Analyse_Parametrique():
         eMesh.append(len(M))
         eMesh.append('(')
         for x,y,z in M:
-            eMesh.append('('+repr(x)+'\t'+repr(y)+'\t'+repr(z)+')')
+            eMesh.append(f'({x}\t{y}\t{z})')
         eMesh.append(")"+"\n"+"\n")  
         #plot des edgs
         if loop:
-            eMesh.append(len(M))
+            eMesh.append(f'{len(M)}\t')
         else :
             eMesh.append(len(M)-1)
         eMesh.append('(')
         for i in range(0,len(M)-1): #1st circle
-            eMesh.append('('+repr(i)+'\t'+repr(i+1)+')')
+            eMesh.append( f'({i} \t {i+1})')
         if loop:
-            eMesh.append('('+repr(len(M)-1)+'\t'+repr(0)+')')
+            eMesh.append(f'({len(M)-1} \t {0})')
         eMesh.append(')')
         eMesh.append("// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //"+"\n")
         eMesh.append("// ************************************************************************* //")
@@ -716,6 +751,115 @@ class Analyse_Parametrique():
                 patch.append('}')                          
         np.savetxt('system/patch',patch, fmt='%s',delimiter=" ")
 
+    def generate_bent_cylinder(
+                        self,
+                        a = 1, 
+                        Th= np.pi/2,
+                        L = 10, 
+                        O = [0,0,0], 
+                        Q= [0,1,0],
+                        P= [1,0,0],
+                        arc_segments = 1000, 
+                        circle_segments = 1000, 
+                        circle_radius = 32, 
+                        filename='constant/triSurface/bent_cylinder.stl'
+                        ):
+        #Arc radius 
+        R = L  / (2 * Th)
+        #dimension 
+        dim = range(3)
+        #Levicita tensor 
+        EPSI = [[[
+            np.sign(j-i)*np.sign(k-i)*np.sign(k-j)
+        for k in dim] for j in dim] for i in dim]
+        #vector in the direction of the bending 
+        N = [sum([sum([
+                EPSI[i][j][k] * P[j] * Q[k] 
+        for k in dim]) for j in dim]) for i in dim]
+        #compute the second origine 
+        X1 = np.cos(Th)  * R
+        O1 = [(O[i] - P[i] * X1) for i in dim]
+    
+        vertices = []
+        faces = []
+        # Generate vertices for the bent cylinder
+
+        for i in range(arc_segments+1):
+            th = Th  -  i * 2 * Th  / (arc_segments)
+            Mnorm = [
+                (P[i] * np.cos(th) + Q[i] * np.sin(th))
+            for i in dim]
+            O1M = [
+                O1[i] + R * (P[i] * np.cos(th) + Q[i] * np.sin(th))
+            for i in dim]
+            for j in range(circle_segments):
+                theta = 2 * np.pi * j / circle_segments
+                O1M1 = [
+                    O1M[i] + a * (Mnorm[i] * np.cos(theta) + N[i] * np.sin(theta))
+                for i in dim]
+                vertices.append(O1M1)
+
+        # Create faces connecting the circular cross-sections
+        for i in range(arc_segments):
+            for j in range(circle_segments):
+                next_j = (j + 1) % circle_segments
+                # Indices for the two triangles of each quad
+                v0 = i * circle_segments + j
+                v1 = i * circle_segments + next_j
+                v2 = (i + 1) * circle_segments + j
+                v3 = (i + 1) * circle_segments + next_j
+                faces.append([v0, v1, v2])
+                faces.append([v1, v3, v2])
+
+        # Create STL mesh
+        vertices = np.array(vertices)
+        faces = np.array(faces)
+        bent_cylinder = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
+        for i, f in enumerate(faces):
+            for j in range(3):
+                bent_cylinder.vectors[i][j] = vertices[f[j], :]
+
+        bent_cylinder.save(filename)
+        messshh = pv.read(filename)
+        messshh = messshh.fill_holes(2*a)
+        messshh.save(filename)
+        
+        ## DOING eMesh1 
+        for name,th in [[0,Th],[1,-Th]]:
+            vertices = []
+            Mnorm = [
+                (P[i] * np.cos(th) + Q[i] * np.sin(th))
+            for i in dim]
+            O1M = [
+                O1[i] + R * (P[i] * np.cos(th) + Q[i] * np.sin(th))
+            for i in dim]
+            for j in range(circle_segments):
+                theta = 2 * np.pi * j / circle_segments
+                O1M1 = [
+                    O1M[i] + a * (Mnorm[i] * np.cos(theta) + N[i] * np.sin(theta))
+                for i in dim]
+                vertices.append(O1M1)
+            name=f"cercle{name}"
+            self.eMesh(vertices,name,1)
+        
+    def bend_cylinder(self): 
+        Ocyl = [self.parameters['xCenter'],self.parameters['yCenter'],self.parameters['zCenter']]
+        Q = [np.sin(self.Theta * np.pi /180 ) , np.cos(self.Theta * np.pi /180 ), 0]
+        P = [- np.cos(self.Theta2 * np.pi /180 ) *np.cos(self.Theta * np.pi /180 ), 
+            np.cos(self.Theta2 * np.pi /180 ) *np.sin(self.Theta * np.pi /180 ),
+            np.sin(self.Theta2 * np.pi /180 )]
+        self.generate_bent_cylinder(
+                       a=self.r,
+                       L=self.length,
+                       O=Ocyl,
+                       P=P,
+                       Q=Q,
+                       Th=self.ThetaBend * np.pi/ 180,
+                       filename='constant/triSurface/bent_cylinder.stl'
+                       )
+        self.eMeshForSnappy()
+        
+        
     def forcesFunc(self,p,U):
         """print the force fonctionObject for each cylinder.
 
@@ -830,9 +974,11 @@ class Analyse_Parametrique():
         for dire in dirs:  
                 os.system('cp -r '+dire+' '+namedir_simulation+'/')
         os.system('cp -r constant '+namedir_simulation)
+        # os.system('cp -r VTK '+namedir_simulation)
         os.system('cp -r system '+namedir_simulation)
         os.system('cp -r Cyls_for_this_study.py '+namedir_simulation)
         os.system('cp -r DATA.csv '+namedir_simulation)
+        os.system('cp -r *.foam '+namedir_simulation)
         # os.system('cp -r 0 '+namedir_simulation)
     
     def no_results(self):
@@ -1008,18 +1154,18 @@ class Analyse_Parametrique():
             os.system("sed -i 's/ /,/g' MOM.csv ")
             os.system("sed -i 's/ /,/g' FOR.csv ")
         else:
-            os.system("echo Fo,Re,Theta,Chi > POS.csv")
+            os.system("echo Fo,Re,Theta,Theta2,ThetaB,Chi > POS.csv")
             os.system("echo Fx,Fy,Fz,Fxp,Fyp,Fzp,Fxv,Fyv,Fzv > FOR.csv")
-            os.system("echo Mx,My,Mz,Mxp,Myp,Mzp,Mxv,Myv,Mzv > MOM.csv")
+            os.system("echo Mxx,Mxy,Mxz,Myx,Myy,Myz,Mzx,Mzy,Mzz > MOM.csv")
             forcesdir = ['forces','forces_omega','forcesbot','forcessides','forcestop']
             for F in forcesdir:    
-                os.system(f"echo {F},{self.parameters['Re']},{self.parameters['Theta']},{self.ksi} >> POS.csv")
+                os.system(f"echo {F},{self.parameters['Re']},{self.parameters['Theta']},{self.parameters['Theta2']},{self.parameters['ThetaBend']},{self.ksi} >> POS.csv")
             steps = pd.Series(os.listdir())
             laststep = max([float(a) for a in steps[steps.str.replace('.','').str.isdigit()]])
             if str(laststep)[-2:] == '.0': laststep = str(laststep)[:-2]
             print('LASTSTAEP ', laststep)
             os.system('tail -q -n 1 postProcessing/*/'+laststep+'/force.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> FOR.csv')
-            os.system('tail -q -n 1 postProcessing/*/'+laststep+'/moment.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> MOM.csv')
+            os.system('tail -q -n 1 postProcessing/*/'+laststep+'/firstmoment.dat |sed "s/(//g;s/)//g" |awk "{print \$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10}" >> MOM.csv')
             os.system("sed -i 's/ /,/g' MOM.csv ")
             os.system("sed -i 's/ /,/g' FOR.csv ")
         M = pd.read_csv('MOM.csv')

@@ -26,3 +26,4 @@ rm -rf processor*
 runApplication foamLog log.${application}
 sed -i 's/SRFSimpleFoam/simpleFoam/' system/controlDict
 #------------------------------------------------------------------------------
+paraFoam -touch-all

@@ -346,10 +346,10 @@ void Foam::functionObjects::FirstMoment::resetFields()
 
         force == dimensionedVector(force.dimensions(), Zero);
 
-        volVectorField& moment =
-            lookupObjectRef<volVectorField>(fieldName("moment"));
+        // volVectorField& moment =
+        //     lookupObjectRef<volVectorField>(fieldName("moment"));
 
-        moment == dimensionedVector(moment.dimensions(), Zero);
+        // moment == dimensionedVector(moment.dimensions(), Zero);
 
         volTensorField& firstmoment =
             lookupObjectRef<volTensorField>(fieldName("firstmoment"));
@@ -703,7 +703,7 @@ void Foam::functionObjects::FirstMoment::writeFirstMoment()
 
     writeIntegratedForceMoment
     (
-        "FirstMoment",
+        "firstmoment",
         firstmoment_[0],
         firstmoment_[1],
         firstmoment_[2],
@@ -1077,7 +1077,7 @@ bool Foam::functionObjects::FirstMoment::read(const dictionary& dict)
             (
                 IOobject
                 (
-                    fieldName("FirstMoment"),
+                    fieldName("firstmoment"),
                     time_.timeName(),
                     mesh_,
                     IOobject::NO_READ,
@@ -1278,7 +1278,7 @@ bool Foam::functionObjects::FirstMoment::write()
     {
         lookupObject<volVectorField>(fieldName("force")).write();
         // lookupObject<volVectorField>(fieldName("moment")).write();
-        lookupObject<volTensorField>(fieldName("FirstMoment")).write();
+        lookupObject<volTensorField>(fieldName("firstmoment")).write();
     }
 
     return true;

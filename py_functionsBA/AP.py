@@ -4,6 +4,7 @@ import math
 import os
 import filecmp
 import shutil
+# from scipy.special import gammaincc
 class AP():
     def __init__(self,para_name: str,parameters_list: list,namestud: str,name_of_C_file='RS'):
         self.para_name = para_name
@@ -22,43 +23,40 @@ class AP():
         self.rho_r = 1.1668599      # ratio of rho
         self.mu_r = 0.4237805       # ratio between mu
         self.PHI = 0.15             # concentration phi
-        self.N = 10                 # sqrt of the number of bubbles 
+        self.Nb = 100               # number of bubbles 
+        self.N = int(np.sqrt(self.Nb))                 # sqrt of the number of bubbles 
         self.Nbsup = 2              # number of sup bubble that need to be in case there is breakage
         # numerical parameters 
         self.ndcmin         = 40
+        self.LDn            = self.ndcmin        # number of layers per diameter of drops for continuity waves computation
         self.TMAX           = 2000         # end time 
         self.dtprint        = 0.1          # writing time step
         self.FIRSTSTEP      = self.dtprint * 1
         self.SAVESTEP       = self.TMAX/3
         self.MOVIES         = 1
-        # geometrical parameters 
+        # geometrical parameters ll R
         self.dimension = 2                # set the dimension of the simulation 
         self.nopara    = ''
         
         ## constant dimensional parameters 
-        self.g = 1.                 # gravity 
+        self.G = 1.                  # gravity 
         self.r1 = 1.
-        self.D = 1.                 # diameter of bubbles
+        self.D = 1.                    # diameter of bubbles
         self.rho_d = 1.             # density of the dispersed phase 
-        
-        ##Other fiwed parameter 
-        
-        self.LDn    = 20        # number of layers per diameter of drops
         
         ## depending parameters 
         # Physiical parameters
-        if self.dimension == 2:                                                   # if it is in 2d
-            self.Nb = self.N**2                              # number of cells 
-            self.Ls = self.N*self.D*math.sqrt(math.pi/(4.*self.PHI))        # size of the domain
+        if self.dimension == 2:
+            self.Ls = np.cbrt(self.Nb*math.pi/(self.PHI*4)) * self.D
             self.Vol = math.pi * self.D**2/4.
-        if self.dimension == 3:                                                   # if it is in 3d
-            self.Nb = self.N**3                         # number of cells 
-            self.Ls = self.N*self.D*math.pow(math.pi/(6.*self.PHI),1./3.)   # size of the domain
+        if self.dimension == 3:
+            self.Ls = np.cbrt(self.Nb*math.pi/(self.PHI*6)) * self.D
             self.Vol = math.pi * (self.D/2.)**3 * 4./3.
-        self.mu_d = math.sqrt(abs(1-self.rho_r)*self.rho_r*self.g*self.D**3)*self.rho_d/(self.Ga*self.mu_r);    
+
+        self.mu_d = math.sqrt(abs(1-self.rho_r)*self.rho_r*self.G*self.D**3)*self.rho_d/(self.Ga*self.mu_r);    
         self.mu_f = self.mu_d*self.mu_r
         self.rho_f = self.rho_d*self.rho_r
-        self.sig = abs(1-self.rho_r)*self.rho_d*self.g*self.D**2/self.Bo
+        self.sig = abs(1-self.rho_r)*self.rho_d*self.G*self.D**2/self.Bo
         # Geometrical parameters
         self.DP = self.Ls /self.N           # size of a unit cell
         self.RND = 0.49*(self.DP-self.D)    # maximum displacement of the buuble from the center of the unit cell
@@ -66,8 +64,10 @@ class AP():
         self.LEVEL =int( math.ceil(np.log(self.ndcmin*self.Ls/self.D)/np.log(2.))  )             # number of cells per diameters of a bubble
         self.ndc = 2**self.LEVEL/self.Ls*self.D
         self.ESP2 = 1e-6
+        self.Dx = self.Ls / 2**self.LEVEL
         # sedimentational velocity
-        self.Ug = 2./9. * self.D**2/4. / self.mu_f *(self.rho_d - self.rho_f) *self.g
+        self.Ug = 2./9. * self.D**2/4. / self.mu_f *(self.rho_d - self.rho_f) *self.G
+        self.Ca = self.Ug * self.mu_f /self.sig
         # others non dimensional numbers 
         self.Oh = self.mu_d / math.sqrt(self.rho_d*self.D/2.*self.sig)
         self.St = self.rho_d * self.D * self.Ug/self.mu_f/18.
@@ -80,6 +80,7 @@ class AP():
         
         # restore
         self.CORREC = 1 
+        self.MyTREE = 0 
         self.DEBUG = 0
         self.RESTORE = 0 
         self.RESTORE_DIR  = self.name_of_C_file
@@ -87,7 +88,7 @@ class AP():
         # period of the smallest capilarity wave
         self.h = self.Ls / 2**self.LEVEL
         self.rho_m = (self.rho_d + self.rho_f)/2.
-        self.Tsig = math.sqrt(self.rho_m*self.D**3/(math.pi * self.sig))
+        self.Tsig = math.sqrt(self.rho_m*self.Dx**3/(math.pi * self.sig))
         self.TimeScale =0
         self.HMT =1
         
@@ -96,24 +97,41 @@ class AP():
         self.Fsig = self.sig * self.D
         
         # Viscus and inertial time 
-        self.Drho = abs(self.rho_d-self.rho_f)
+        self.Drho = abs(self.rho_d - self.rho_f)
         
-        self.Ug = np.sqrt(self.g * self.D * self.Drho /self.rho_d)
-        self.Tg = self.Ls / self.Ug 
-        
-        
-        self.Uv = self.Drho * self.Vol * self.g /self.mu_f * self.D**2         
-        self.Tv = self.Ls / self.Uv
-        
-        self.Used = self.D**2 / self.mu_f *abs(self.rho_d - self.rho_f) *self.g
-        self.Tsed = self.Ls / self.Used
+        self.Ug = np.sqrt(self.G * self.D * self.Drho /self.rho_f)
+        self.Tg = self.D / self.Ug 
         
         
+        self.Uv = self.Drho * self.G /self.mu_f * self.D**2         
+        self.Tv = self.D / self.Uv
         
+        self.Used = self.D**2 / self.mu_f * abs(self.rho_d - self.rho_f) *self.G
+        self.Tsed = self.D / self.Used
         
-        
+        self.F = self.Drho * self.G * self.Vol
+        self.Mhg = self.D * self.F 
         # first update of the parameters 
         self.parameters = dict()
+        self.BI_DISPERSE = 1
+        self.ratio_bi_disperse  = 2
+        if self.dimension == 2:
+            self.factor = np.sqrt(2./(1. + self.ratio_bi_disperse**2))
+            self.R1 = self.factor * self.D/2
+            self.R2 = self.ratio_bi_disperse * self.factor * self.D/2
+        if self.dimension == 3:
+            self.factor = np.cbrt(2./(1. + self.ratio_bi_disperse**3))
+            self.R1 = self.factor * self.D/2
+            self.R2 = self.ratio_bi_disperse * self.factor * self.D/2
+        if self.BI_DISPERSE == 0: self.R1 = self.R2 = self.D/2
+        # computation of dimensionless para for the population 
+        self.Ga1  =  np.sqrt(self.rho_f * np.abs(self.rho_f - self.rho_d)*self.G* (2*self.R1)**3) / self.mu_f
+        self.Ga2  =  np.sqrt(self.rho_f * np.abs(self.rho_f - self.rho_d)*self.G* (2*self.R2)**3) / self.mu_f
+        self.Bo1  =  (self.rho_f - self.rho_d) * self.G *(2*self.R1)**2 / self.sig
+        self.Bo2  =  (self.rho_f - self.rho_d) * self.G *(2*self.R2)**2 / self.sig
+        #nearest distance mean
+        self.r_m = 0 
+        # 
         self.update_parameters_dictionnary()
         
     def run(self):
@@ -121,7 +139,19 @@ class AP():
         os.system('rm -rf dump')
         if(self.RESTORE): 
             os.system('cp -r '+self.RESTORE_DIR+' dump')
+            try:
+                self.parameters['LOI'] = int(open("dump/number_of_vof.txt","r").read())
+            except: 
+                print("COULD NOT RESTORE !")
+
         os.system('sed -i "s/#define dimension.*/#define dimension '+str(self.dimension)+'/" '+str(self.name_of_C_file)+'.c')
+        
+        os.system('sed -i "s/octree.h/multigrid.h/" '+str(self.name_of_C_file)+'.c')
+        os.system('sed -i "s/quadtree.h/multigrid.h/" '+str(self.name_of_C_file)+'.c')
+        if(self.MyTREE):
+            os.system('sed -i "s/multigrid.h/quadtree.h/" '+str(self.name_of_C_file)+'.c')
+            if(self.dimension == 3):
+                os.system('sed -i "s/quadtree.h/octree.h/" '+str(self.name_of_C_file)+'.c')
         os.system('make clean')
         os.system('rm -rf .qcc*') 
         os.system('mkdir -p '+self.resultsdir)
@@ -134,12 +164,10 @@ class AP():
             os.system('rm -rf '+self.name_of_C_file)         
             self.set_parameters_dictionnary(P)
             self.print_parameters()
-            print(os.listdir())
             if self.nProc > 1:
                 print('RUNINNG parallel')
                 cmd = 'CC="mpicc -D_MPI='+str(int(self.nProc)) +'"'+ ' make '+self.name_of_C_file+'.tst'
                 print(cmd)
-                
                 os.system(cmd)
             else:    
                 print('RUNINNG simple')
@@ -156,27 +184,32 @@ class AP():
         
         if self.TimeScale:
             self.TMAX = self.parameters[self.TimeScale] * self.HMT
+            # self.dtprint = self.parameters[self.TimeScale] 
             self.SAVESTEP = self.TMAX/3.
         self.update_parameters_dictionnary()
+        self.parameters[self.para_name] = parameter_value
     
     def calcul_parameters(self):
-        if self.parameters['dimension'] == 2:                                                 
-            self.Nb = self.parameters['N']**2
-            Vd = math.pi*self.parameters['D']**2./4. 
-            self.Ls = self.parameters['N']*math.sqrt(Vd/self.parameters['PHI'])
-            self.Vol = math.pi * (self.parameters['D']/2.)**2
-        if self.parameters['dimension'] == 3:                                                  
-            self.Nb = self.parameters['N']**3               
-            Vd = 4./3.*math.pi*(self.parameters['D']/2.)**3. 
-            self.Ls = self.parameters['N']*(Vd/self.parameters['PHI'])**(1./3.)
+        self.D = self.parameters['D']
+        self.PHI = self.parameters['PHI']
+        self.Nb  = self.parameters['Nb']
+        self.N = int(round(self.Nb**(1./self.parameters['dimension'])))                 # sqrt of the number of bubbles 
+        
+        if self.parameters['dimension'] == 2:
+            self.Ls = np.sqrt(self.Nb*math.pi/(self.PHI*4)) * self.D
+            self.Vol = math.pi * (self.D/2.)**2
+        if self.parameters['dimension'] == 3 :
+            self.Ls = np.cbrt(self.Nb*math.pi/(self.PHI*6)) * self.D
             self.Vol = math.pi * (self.parameters['D']/2.)**3 * 4./3.
-        self.mu_d = math.sqrt(abs(1-self.parameters['rho_r'])*self.parameters['rho_r']*self.parameters['g']*self.parameters['D']**3)*self.parameters['rho_d']/(self.parameters['Ga']*self.parameters['mu_r']);    
+            
+        self.mu_d = math.sqrt(abs(1-self.parameters['rho_r'])*self.parameters['rho_r']*self.parameters['G']*self.parameters['D']**3)*self.parameters['rho_d']/(self.parameters['Ga']*self.parameters['mu_r']);   
+         
         self.mu_f = self.mu_d*self.parameters['mu_r']
         self.rho_f = self.parameters['rho_d']*self.parameters['rho_r']
         self.rho_d  = self.parameters['rho_d']
         self.D = self.parameters['D']
-        
-        self.sig = abs(1-self.parameters['rho_r'])*self.parameters['rho_d']*self.parameters['g']*self.parameters['D']**2/self.parameters['Bo']
+        self.G = self.parameters['G']
+        self.sig = abs(1-self.parameters['rho_r'])*self.parameters['rho_d']*self.parameters['G']*self.parameters['D']**2/self.parameters['Bo']
         # parameters['G']eometrical parameters
         self.DP = self.Ls /self.parameters['N']           # size of a unit cell
         self.RND = 0.4*(self.DP-self.parameters['D'])    # maximum displacement of the buuble from the center of the unit cell
@@ -184,6 +217,7 @@ class AP():
         self.LEVEL =int( math.ceil(np.log(self.parameters['ndcmin']*self.Ls/self.parameters['D'])/np.log(2.)))             # number of cells per diameters of a bubble
         self.ndc = 2**self.LEVEL/self.Ls*self.parameters['D']
         # Viscous time and inertial time 
+        self.Dx = self.Ls / 2**self.LEVEL
 
         # others non dimensional numbers 
         self.Oh = self.mu_d / math.sqrt(self.parameters['rho_d']*self.parameters['D']/2.*self.sig)
@@ -192,26 +226,56 @@ class AP():
         # period of the smallest capilarity wave
         self.h = self.Ls / 2**self.LEVEL
         self.rho_m = (self.parameters['rho_d'] + self.rho_f)/2.
-        self.Tsig = math.sqrt(self.rho_m * self.parameters['D']**3/(math.pi * self.sig))
+        self.Tsig = math.sqrt(self.rho_m * self.Dx**3/(math.pi * self.sig))
         # Set the end time of simulation 
-        self.SAVESTEP = self.parameters['TMAX']/3.
         self.Asig = self.sig / (self.rho_m * pow(self.parameters['D'] , self.dimension))
         self.Fsig = self.sig * self.parameters['D']
         # Compute the inertial time scale 
-        self.Used = self.D**2 / self.mu_f *abs(self.rho_d - self.rho_f) *self.g
-        self.Tsed = self.Ls / self.Used
+        self.Used = self.D**2 / self.mu_f *abs(self.rho_d - self.rho_f) *self.G
+        self.Tsed = self.D / self.Used
         
         self.Drho = abs(self.rho_d-self.rho_f)
-        self.Ug = np.sqrt(self.g * self.D )
-        self.Tg = self.Ls / self.Ug 
+        self.Ug = np.sqrt(self.G * self.D * self.Drho /self.rho_f)
+
+        self.Tg = self.D / self.Ug 
+        self.F = self.Drho * self.G * self.Vol
+        self.Mhg = self.D * self.F 
         
-        self.Uv = self.Drho * self.g /self.mu_f * self.D**2         
-        self.Tv = self.Ls / self.Uv
+        self.Uv = self.Drho * self.G /self.mu_f * self.D**2         
+        self.Tv = self.D / self.Uv
+        self.LDn    = self.parameters['ndcmin']        # number of layers per diameter of drops
+        self.Dx = self.Ls / 2**self.LEVEL
+
+        self.ratio_bi_disperse  = self.parameters['ratio_bi_disperse']
+        if self.dimension == 2:
+            self.factor = np.sqrt(2./(1. + self.ratio_bi_disperse**2))
+            self.R1 = self.factor * self.D/2
+            self.R2 = self.ratio_bi_disperse * self.factor * self.D/2
+        if self.dimension == 3:
+            self.factor = np.cbrt(2./(1. + self.ratio_bi_disperse**3))
+            self.R1 = self.factor * self.D/2
+            self.R2 = self.ratio_bi_disperse * self.factor * self.D/2
+        if self.BI_DISPERSE == 0: self.R1 = self.R2 = self.D/2
+
+        self.Ga1  =  np.sqrt(self.rho_f * np.abs(self.rho_f - self.rho_d)*self.G* (2*self.R1)**3) / self.mu_f
+        self.Ga2  =  np.sqrt(self.rho_f * np.abs(self.rho_f - self.rho_d)*self.G* (2*self.R2)**3) / self.mu_f
+        self.Bo1  =  (self.rho_f - self.rho_d) * self.G *(2*self.R1)**2 / self.sig
+        self.Bo2  =  (self.rho_f - self.rho_d) * self.G *(2*self.R2)**2 / self.sig
+        
+        # computation of the mean distance to the mean 
+        n_p = self.Nb / self.Ls**self.dimension
+        C = 4 * n_p * math.pi / 3
+        # # r_m2 = C * 3 * np.exp(-C * self.D**3 ) /( 9 * C**(5/3)) *gammaincc(5./2., C* self.D**(1/3)) 
+        self.r_m = 0
         
     def update_parameters_dictionnary(self):
+        self.parameters["ratio_bi_disperse"]           = self.ratio_bi_disperse
         self.parameters["CORREC"]           = self.CORREC
+        self.parameters["MyTREE"]           = self.MyTREE
+        self.parameters["BI_DISPERSE"]      = self.BI_DISPERSE
         self.parameters["Tsig"]             = self.Tsig
         self.parameters["Asig"]             = self.Asig
+        self.parameters["Ca"]               = self.Ca
         self.parameters["Fsig"]             = self.Fsig
         self.parameters["TimeScale"]        = self.TimeScale
         self.parameters["DEBUG"]            = self.DEBUG
@@ -221,7 +285,9 @@ class AP():
         self.parameters["RESTORE_DIR"]      = self.RESTORE_DIR
         self.parameters["Uv"]               = self.Uv
         self.parameters["Tv"]               = self.Tv
-        self.parameters["HMT"]               = self.HMT
+        self.parameters["F"]                = self.F
+        self.parameters["Mhg"]              = self.Mhg
+        self.parameters["HMT"]              = self.HMT
         self.parameters["Tg"]               = self.Tg
         self.parameters["Ug"]               = self.Ug
         self.parameters["COAL"]             = self.COAL
@@ -234,9 +300,14 @@ class AP():
         self.parameters["name_of_C_file"]   = self.name_of_C_file
         self.parameters["MPI"]              = self.MPI
         self.parameters["Ug"]               = self.Ug
+        self.parameters["Drho"]             = self.Drho
         self.parameters["nProc"]            = self.nProc
         self.parameters["Bo"]               = self.Bo              # Bond number
+        self.parameters["Bo1"]               = self.Bo1              # Bond number
+        self.parameters["Bo2"]               = self.Bo2              # Bond number
         self.parameters["Ga"]               = self.Ga                # Galileo number
+        self.parameters["Ga1"]               = self.Ga1
+        self.parameters["Ga2"]               = self.Ga2
         self.parameters["rho_r"]            = self.rho_r      # ratio of rho
         self.parameters["mu_r"]             = self.mu_r       # ratio between mu
         self.parameters["PHI"]              = self.PHI             # concentration phi
@@ -244,7 +315,7 @@ class AP():
         self.parameters["ndc"]              = self.ndc               # number of cells per diameters of a bubble
         self.parameters["dtprint"]          = self.dtprint          # writing time step
         self.parameters["dimension"]        = self.dimension      
-        self.parameters["g"]                = self.g
+        self.parameters["G"]                = self.G
         self.parameters["D"]                = self.D
         self.parameters["rho_d"]            = self.rho_d
         self.parameters["LDn"]              = self.LDn
@@ -266,6 +337,11 @@ class AP():
         self.parameters["ndcmin"]           = self.ndcmin
         self.parameters["Tsed"]             = self.Tsed
         self.parameters["Used"]             = self.Used
+        self.parameters["Dx"]               = self.Dx
+        self.parameters["R1"]               = self.R1
+        self.parameters["R2"]               = self.R2
+        self.parameters["VOL"]              = self.Vol
+        self.parameters["r_m"]              = self.r_m
         
     def print_parameters(self):
         with open('parameters.h','w') as the_file:

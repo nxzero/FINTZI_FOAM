@@ -1,0 +1,187 @@
+1 patch for repository http://basilisk.fr/basilisk:
+
+patch 75d8f83985eb0fef0b00ec5f2b6091b3f982b1a9
+Author: nicolas.fintzi@etu.sorbonne-universite.fr
+Date:   Fri Jan 10 10:44:53 UTC 2025
+  * fix bug grammar in einstein_sum macro
+
+New patches:
+
+[fix bug grammar in einstein_sum macro
+nicolas.fintzi@etu.sorbonne-universite.fr**20250110104453
+ Ignore-this: 317f0bf1fb6c26a6ae61ef42637c3f92
+] hunk ./src/ast/einstein_sum.h 153
++  int * values_sum, id_N;
+hunk ./src/ast/einstein_sum.h 161
+-  ast_set_line (item, ast_right_terminal (list));
+-  Ast * parent = list->parent;
+-  int index = ast_child_index (list);
+-  Ast * l =  ast_new_children (ast_new (parent, list->sym),
+-			       list, 
+-			       ast_terminal_new_char (item, "+"),
+-			       ast_new (item, item_sym));
+-  ast_attach (l->child[2], item);
+-  ast_set_child (parent, index, l);
+-  return l;
++   ast_set_line (item, ast_right_terminal (list));
++   Ast * parent = list->parent;
++   int index = ast_child_index (list);
++   Ast * l;
++   if (item->sym == item_sym)
++     l = ast_new_children (ast_new (parent, list->sym),
++                          list,
++                          ast_terminal_new_char (item, "+"),
++                          item);
++   else {
++     l =  ast_new_children (ast_new (parent, list->sym),
++                           list,
++                           ast_terminal_new_char (item, "+"),
++                           ast_new (item, item_sym));
++     ast_attach (l->child[2], item);
++   }
++   ast_set_child (parent, index, l);
++   return l;
+hunk ./src/ast/einstein_sum.h 213
+-  char buffer[100] = {0}; // fixme: buffer overflows??
++  char buffer[1000] = {0}; // fixme: buffer overflows??
+hunk ./src/ast/einstein_sum.h 250
+-  char buffer[100] = {0}; // fixme: buffer overflows??
++  char buffer[1000] = {0}; // fixme: buffer overflows??
+hunk ./src/ast/einstein_sum.h 298
+-    if (len >= 2 && t->start[len - 2] == '_' &&
+-	strchr ("xyz", t->start[len - 1]) &&
+-        t->start[0] == d->current_id[0]) 
+-      t->start[len - 1] = 'x' + (t->start[len - 1] + 1 - 'x') % d->dimension;
++    if (len >= 2 && t->start[len - 2] == '_' && strchr ("xyz", t->start[len - 1]))
++      for (int i = 0; i < d->id_N; i++)
++        if(t->start[0] == d->current_id[i]){
++          t->start[len - 1] = 'x' + d->values_sum[i];
++        }
+hunk ./src/ast/einstein_sum.h 307
++Generate the list of all possible permutations for the indices 
++with {0,1,2} corresponding to {x,y,z}. */
++
++static void generates_list_of_permutations(int * LOP,int num_of_index,int dim){
++    int length = pow(dim,num_of_index);
++    int bitval = dim - 1;
++    for(int i=0; i<num_of_index;i++)
++      for(int j=0;j<length;j++){
++        if(!(j % (int) pow(dim,i))){
++          if(bitval == (dim - 1)) bitval =0;
++          else bitval++;
++        }
++        LOP[j*num_of_index + i] = bitval;
++      }
++}
++
++/**
+hunk ./src/ast/einstein_sum.h 328
+-  if (n->sym == sym_additive_expression || n == get_right_hand_side (n, stack)) {
++  if (
++    (n->sym == sym_multiplicative_expression 
++    && n->parent->sym == sym_additive_expression) 
++    ||n->sym == sym_additive_expression 
++    || n == get_right_hand_side (n, stack)
++  ) {
+hunk ./src/ast/einstein_sum.h 336
+-    Ast * body = ast_last_child (n);
+-    if (n == get_right_hand_side (n, stack))
+-    while (body->sym != sym_additive_expression)
+-      body = ast_last_child (body);      
++    if (n == get_right_hand_side (n, stack)){
++      while (n->sym != sym_additive_expression)
++        n = ast_last_child(n);      
++    }
++    Ast * body = n;
+hunk ./src/ast/einstein_sum.h 366
+-
+-    int id_N = strlen (sum_id);
++    d->id_N = strlen (sum_id);
+hunk ./src/ast/einstein_sum.h 368
+-      id_N = 0;
++      d->id_N = 0;
+hunk ./src/ast/einstein_sum.h 371
+-    d->current_id = malloc (sizeof(char)*2);
+-    d->current_id[1] = '\0';
+-    for (int i = 0; i < id_N; i++) {
+-      d->current_id[0] = sum_id[i];
+-      Ast * copy = body;
+-      for (int j = 1; j < d->dimension; j++) {
+-        // perform the rotation on the index that must be summed 
++    d->current_id = malloc (sizeof(char)*(d->id_N+1));
++    for(int i=0;i<d->id_N;i++) d->current_id[i] = sum_id[i];
++    d->current_id[d->id_N+1] = '\0';
++
++
++    int number_of_terms = pow(d->dimension,d->id_N);
++    int * list_of_permutations = malloc(sizeof(int) * number_of_terms * d->id_N);
++    generates_list_of_permutations(list_of_permutations,
++                                  d->id_N,
++                                  d->dimension);
++
++    // we must permute and add alll multiplicative expr in the additive expr 
++    int mult=0;
++    if(body->sym==sym_multiplicative_expression){
++      body = body->parent;
++      mult=1;
++    }
++    Ast * b = body; 
++    while (b->sym==sym_additive_expression 
++      &&  ast_last_child(b)->sym==sym_multiplicative_expression){
++      Ast * copy = ast_last_child(ast_copy(b)); //first multiplicative 
++      for(int j=1;j<number_of_terms;j++){//we start at j=1 
++        d->values_sum = &list_of_permutations[j * d->id_N];
+hunk ./src/ast/einstein_sum.h 400
++      b = b->child[0];
++      if(mult) break;
+hunk ./src/ast/einstein_sum.h 403
++    free(list_of_permutations);
+hunk ./src/ast/einstein_sum.h 433
+-    Ast * expr_statement = get_expression_statement (n->parent);
+hunk ./src/ast/einstein_sum.h 479
++    d->id_N = id_N; 
++    d->current_id = malloc (sizeof(char)*(d->id_N +1));
++    for(int i=0;i<d->id_N;i++) d->current_id[i] = id_list_before[id_N - i - 1];
++    d->current_id[d->id_N+1] = '\0';
+hunk ./src/ast/einstein_sum.h 486
++
++    int number_of_terms = pow(d->dimension,d->id_N);
++    int * list_of_permutations = malloc(sizeof(int) * number_of_terms * d->id_N);
++    generates_list_of_permutations(list_of_permutations,
++                                  d->id_N,
++                                  d->dimension);
+hunk ./src/ast/einstein_sum.h 493
+-    d->current_id = malloc (2*sizeof(char));
+-    d->current_id[0] = '\0';
+-    for (int i = 0; i < id_N; i++) {
+-      d->current_id[0] = id_list_before[id_N - i - 1];
+-      Ast * copy = expr_statement;
+-      for (int j = 1; j < d->dimension; j++) {
+-        copy = ast_copy (copy);
+-        stack_push (stack, &copy);
+-        ast_traverse (copy, stack, einstein_sum_rotate, d);
+-        ast_pop_scope (stack, copy);  
+-        expr_statement = ast_block_list_append (expr_statement, copy->sym, copy);
+-      }
++    Ast * copy = statement;
++    for(int j=1;j<number_of_terms;j++){//we start at j=1 
++      d->values_sum = &list_of_permutations[j * d->id_N];
++      copy = ast_copy (copy);
++      stack_push (stack, &copy);
++      ast_traverse (copy, stack, einstein_sum_rotate, d);
++      ast_pop_scope (stack, copy);  
++      item_list = ast_block_list_append (item_list, sym_block_item, copy);
+hunk ./src/ast/einstein_sum.h 502
++    free(list_of_permutations);
+hunk ./src/ast/einstein_sum.h 526
+-  ast_replace_child (item, 0, body);
++  ast_replace_child (item->child[0], 0, body);
+
+Context:
+
+[TAG release Gulf Stream
+Stephane Popinet <popinet@basilisk.fr>**20241123150610
+ Ignore-this: 1ee178ae2ac79f5d1a4a487f504fc070
+] 
+Patch bundle hash:
+ae20bae85295b39f6c0528e7d8952ae2e7f12ed7

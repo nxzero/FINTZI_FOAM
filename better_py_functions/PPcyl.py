@@ -177,18 +177,24 @@ class PPcyl():
         self.fl.append(FL)
         self.mz.append(FM)
         N = int(4*chi)
-        for c in list(np.linspace(-L/2+dH/2,L/2-dH/2,int(4*chi))):
-            cond1 = ((dataS['C_0']-xCenter)*ctt+(dataS['C_1'] - yCenter)*stt )< (c +dH/2.)
-            cond2 = ((dataS['C_0']-xCenter)*ctt+(dataS['C_1'] - yCenter)*stt )>= (c -dH/2.)
+        # listt = list(np.linspace(-L/2+dH/2,L/2-dH/2, 100)
+        # listt = [i for j, i in enumerate(listt) if j % 2 == 0]
+        # for c in listt:
+        dH = D/4.1
+        for c in list(np.linspace(-L/2+dH/2,L/2-dH/2 , int(4*chi))):
+            print(-L/2+dH/2,L/2-dH/2,c)
+            cond1 = ((dataS['C_0']-xCenter)*ctt+(dataS['C_1'] - yCenter)*stt ) <= (c + dH/2.)
+            cond2 = ((dataS['C_0']-xCenter)*ctt+(dataS['C_1'] - yCenter)*stt ) >= (c - dH/2.)
             cond = cond1 & cond2
             d = dataS[cond]
-            FD = d['forces:force_0'].sum() * ct + d['forces:force_1'].sum() * st
-            FL = d['forces:force_0'].sum() * (-st) + d['forces:force_1'].sum() * ct
+            FD = d['forces:force_0'].sum() * ct     + d['forces:force_1'].sum() * st
+            FL = d['forces:force_0'].sum() * (-st)  + d['forces:force_1'].sum() * ct
             FM = d['forces:moment_2'].sum()
             self.s.append(c)
             self.fd.append(FD)
             self.fl.append(FL)
             self.mz.append(FM)
+        
             
         d = dataT
         FD = d['forces:force_0'].sum() * ct + d['forces:force_1'].sum() * st

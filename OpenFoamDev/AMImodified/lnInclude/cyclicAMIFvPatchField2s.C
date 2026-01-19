@@ -1,1 +1,0 @@
-../cyclicAMI2/cyclicAMIFvPatchField2s.C

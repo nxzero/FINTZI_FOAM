@@ -1,0 +1,336 @@
+1 patch for repository http://basilisk.fr/basilisk:
+
+patch fd0707772d359a35a9cec2433ec4489768fc949a
+Author: nicolas.fintzi@etu.sorbonne-universite.fr
+Date:   Tue Apr 30 16:01:19 UTC 2024
+  * Einstein summation convention as a macro
+
+
+New patches:
+
+[Einstein summation convention as a macro
+nicolas.fintzi@etu.sorbonne-universite.fr**20240430160119
+ Ignore-this: 55e6d38ffa9079a59c6a4140a2bcc662
+] hunk ./src/ast/translate.c 133
++Appends `item` to a  `list` of item separated with `+` signs.  
++*/
++
++Ast * ast_add_list_append (Ast * list, int item_sym, Ast * item)
++{
++  ast_set_line (item, ast_right_terminal (list));
++  Ast * parent = list->parent;
++  int index = ast_child_index (list);
++  Ast * l =  ast_new_children (ast_new (parent, list->sym),
++			       list, 
++			       ast_terminal_new_char (item, "+"),
++			       ast_new (item, item_sym));
++  ast_attach (l->child[2], item);
++  ast_set_child (parent, index, l);
++  return l;
++}
++
++/**
+hunk ./src/ast/translate.c 833
++  char * current_id, * forbiden_id, * id_list_after;
+
+hunk ./src/ast/translate.c 2111
++static void einstein_sum_id_list(Ast * n, Stack * stack, void * data){
++  if(n->sym == sym_IDENTIFIER){
++    AstTerminal * t = ast_terminal (n);
++    if(strlen(t->start) > 1){
++      fprintf (stderr,
++              "%s:%d: error: the args of einsc(...,%s,...) must be of length one\n",
++              t->file, t->line,t->start);
++      exit (1);
++    }
++    char * id_list = data;
++    char first_char[2];
++    first_char[0] = *t->start,first_char[1] = '\0';
++    strcat(id_list,first_char);
++  }
++}
++
++static char * get_einstein_sum_args(Ast * n, Stack * stack){    
++  // stop when the macro eintein sum is found
++  Ast * ein_macro = n;
++  char * indentifier = "init";
++  while (strcmp(indentifier,"einstein_sum"))
++  {
++    ein_macro = ast_parent(n, sym_macro_statement);
++    indentifier = ast_terminal(ast_schema (ein_macro, sym_macro_statement,
++                             0, sym_function_call,
++                             0, sym_postfix_expression,
++                             0, sym_primary_expression,
++                             0, sym_IDENTIFIER))->start;
++  }
++  // gather the args in the buffer
++  char buffer[100] = {0};
++  ast_traverse (ein_macro->child[0]->child[2],
++               stack, einstein_sum_id_list , buffer);
++  int length = strlen(buffer);
++  buffer[length] = '\0';
++  char * indices = malloc((length+1) * sizeof(char));
++  strcpy(indices,buffer);
++  return indices;
++}
++
++static void einstein_sum_get_member_id(Ast * n, Stack * stack, void * data){
++  if(n->sym == sym_member_identifier){
++    AstTerminal * t = ast_terminal (ast_schema (n, 
++                                                sym_member_identifier,
++                                                0, sym_generic_identifier,
++                                                0, sym_IDENTIFIER));
++    char * sub_id_list = data;
++    char * id_list = get_einstein_sum_args(n,stack);
++    char first_char[2];
++    first_char[0] = *t->start,first_char[1] = '\0';
++    if(strchr(id_list,*t->start))
++      strcat(sub_id_list,first_char);
++  }
++}
++
++
++static Ast * get_expression_statement(Ast * n){
++  while (n->sym != sym_expression_statement && n->sym == sym_expression)
++    n = n->parent;  
++  return n;
++}
++
++static char * get_expression_id(Ast * n, Stack * stack){
++  char buffer[100] = {0};
++  ast_traverse (n, stack, einstein_sum_get_member_id , buffer);
++  int length = strlen(buffer);
++  buffer[length+1] = '\0';
++  char * sub_id_list = malloc(80 * sizeof(char));
++  strcpy(sub_id_list,buffer);
++  return sub_id_list;
++}
++
++static void einstein_sum_repace_id (Ast * n, Stack * stack, void * data)
++{
++  switch (n->sym) {
++  case sym_member_identifier: {
++    AstTerminal * t = ast_terminal (ast_schema (n, 
++                                                sym_member_identifier,
++                                                0, sym_generic_identifier,
++                                                0, sym_IDENTIFIER));
++    char * id_list = get_einstein_sum_args(n,stack);
++    if (t->start[1] == '\0' && strchr (id_list, *t->start))
++      // char * id_old
++      strcat(t->start,"_x");
++    break;
++  } 
++  }
++}
++
++static void einstein_sum_rotate (Ast * n, Stack * stack, void * data)
++{
++  switch (n->sym) {
++  case sym_member_identifier: {
++    AstTerminal * t = ast_terminal (ast_schema (n, 
++                                                sym_member_identifier,
++                                                0, sym_generic_identifier,
++                                                0, sym_IDENTIFIER));
++    int len = strlen (t->start);
++    TranslateData * d = data;
++    if (len >= 2 && t->start[len - 2] == '_' &&
++	      strchr ("xyz", t->start[len - 1]) &&
++        t->start[0] == d->current_id[0]) 
++      t->start[len - 1] = 'x' + (t->start[len - 1] + 1 - 'x') % d->dimension;
++  }
++  }
++}
++
++static void einstein_sum_sum(Ast * n, Stack * stack,void * data){
++  if(n->sym == sym_additive_expression){
++    TranslateData * d = data;
++    Ast * body = ast_last_child(n);
++
++    char * current_id_list = get_expression_id(body,stack);
++    char * id_list_after = d->id_list_after;
++    char sum_id[80];
++    // tetain only the indicies who appear the number of time they were declared
++    int j=0;
++    for(int i = 0;i<strlen(current_id_list);i++){
++      int k =0; 
++      int m=0;
++      for (int l=0;l<strlen(current_id_list);l++)
++        if(current_id_list[l] == current_id_list[i])
++          k++;
++      for(int l=0;l<strlen(id_list_after);l++)
++        if(id_list_after[l]==current_id_list[i])
++          m++;
++      if(!strchr(d->forbiden_id,current_id_list[i]) && 
++        !strchr(sum_id,current_id_list[i]) && k==m){
++        sum_id[j] = current_id_list[i];
++        j++;
++      }
++      sum_id[j] = '\0';
++    }
++    int id_N = strlen(sum_id);
++    if(!j) {
++      id_N = 0;
++      sum_id[0] = '\0';
++    }
++    d->current_id = malloc(sizeof(char)*2);
++    d->current_id[1]='\0';
++    for(int i = 0; i<id_N; i++){
++      d->current_id[0] = sum_id[i];
++      Ast * copy = body;
++      for (int j = 1; j < d->dimension; j++){ 
++        copy = ast_copy(copy);
++        stack_push (stack, &copy);
++        ast_traverse (copy, stack, einstein_sum_rotate, d);
++        ast_pop_scope (stack, copy);  
++        body = ast_add_list_append(body,copy->sym,copy);
++      }
++    }
++    strcat(d->forbiden_id,sum_id);
++  }
++}
++
++static void einstein_sum_repace_id_back (Ast * n, Stack * stack, void * data)
++{
++  switch (n->sym) {
++  case sym_member_identifier: {
++    AstTerminal * t = ast_terminal (ast_schema (n, 
++                                                sym_member_identifier,
++                                                0, sym_generic_identifier,
++                                                0, sym_IDENTIFIER));
++    char * id_list = get_einstein_sum_args(n,stack);
++    int len = strlen(t->start);
++    if (t->start[len - 2] == '_' &&
++	      strchr ("xyz", t->start[len - 1]) &&
++	      strchr (id_list, t->start[len - 3]))
++        t->start[1] = '\0',t->start[0] = t->start[len - 1] ;
++    break;
++  } 
++  }
++}
++
++static void einstein_sum_expression (Ast * n, Stack * stack, void * data)
++{ 
++  if(n->sym == sym_assignment_expression &&
++    get_expression_statement(n->parent)->sym == sym_expression_statement &&
++    get_expression_statement(n->parent)->parent->sym == sym_statement &&
++    n->parent->sym == sym_expression){
++    TranslateData * d = data;
++    
++    // transform into block item
++    Ast * expr_statement = get_expression_statement(n->parent);
++    Ast * statement = get_expression_statement(n->parent)->parent;
++    Ast * item = ast_block_list_get_item (statement);
++      if(!item) item = get_expression_statement(n->parent);
++    Ast * item_list = item->parent;
++
++    // first we replace the right indices by the componant _x 
++    stack_push (stack, &item);
++    ast_traverse (item, stack, einstein_sum_repace_id, d);
++    ast_pop_scope (stack, item);  
++    
++    // set --> if it is an expression 
++    // set the main braches
++    // check the block is an expression 
++    char * id_list_before = get_expression_id(n,stack);
++    int id_N = strlen(id_list_before);
++    
++    if(ast_child(n,sym_assignment_operator)){
++      Ast * right_hand_side = ast_child(n,sym_assignment_expression);
++      Ast * left_hand_side = ast_child(n,sym_unary_expression);
++      // identify the indices in the body Ast 
++      id_list_before = get_expression_id(left_hand_side,stack);
++      d->id_list_after = get_expression_id(right_hand_side,stack);
++      d->forbiden_id = malloc(sizeof(char)*80);
++      strcpy(d->forbiden_id,id_list_before);
++      stack_push (stack, &right_hand_side);
++      ast_traverse (right_hand_side, stack, einstein_sum_sum, d);
++      ast_pop_scope (stack, right_hand_side);  
++      // then roatte the indices for each dim and indicies
++      id_N = strlen(id_list_before);
++    }
++
++    d->current_id = malloc(2*sizeof(char));
++    d->current_id[0] ='\0';
++    for(int i = 0;i<id_N;i++){
++      d->current_id[0] = id_list_before[id_N -(i+1)];
++      Ast * copy = expr_statement;
++      for (int j = 1; j < d->dimension; j++){ 
++        copy = ast_copy(copy);
++        stack_push (stack, &copy);
++        ast_traverse (copy, stack, einstein_sum_rotate, d);
++        ast_pop_scope (stack, copy);  
++        expr_statement = ast_block_list_append(expr_statement,copy->sym,copy);
++      }
++    }
++    // replace the i_x by x (for all indices and dimension)  
++    stack_push (stack, &item_list);
++    ast_traverse (item_list, stack, einstein_sum_repace_id_back, d);
++    ast_pop_scope (stack, item_list);  
++  }
++}
++
++static void einstein_sum_global (Ast * item, Ast * n, 
++                                Stack * stack, void * data)
++{
++  if(n->child[0]->child[2]->sym == 85){ // 85 correspond to ')' sign
++    AstTerminal * t = ast_left_terminal (n);
++    fprintf (stderr,
++            "%s:%d: error: you must express indices as input in macro : einstein_sum(...) \n",
++            t->file, t->line);
++    exit (1);
++  }
++  Ast * body = ast_last_child (n);
++  stack_push (stack, &body);
++  ast_traverse (body, stack, einstein_sum_expression, data);
++  ast_pop_scope (stack, body); 
++  // remove macro name and append the body 
++  ast_replace_child(item,0,body);
++  ast_remove (n, ast_left_terminal (body));
++}
++
++static void einstein_sum (Ast * n, Stack * stack, void * data)
++{
++  if(n->sym == sym_macro_statement){
++    Ast * identifier = ast_schema (n, sym_macro_statement,
++				   0, sym_function_call,
++				   0, sym_postfix_expression,
++				   0, sym_primary_expression,
++				   0, sym_IDENTIFIER);
++    if (!strcmp (ast_terminal (identifier)->start, "einstein_sum")) {
++      Ast * item = ast_block_list_get_item (n->parent->parent);
++      einstein_sum_global(item ,n ,stack, data);
++    }
++  }
++}
++
+hunk ./src/ast/translate.c 5163
+-  for (TraverseFunc * pass = (TraverseFunc[]){ global_boundaries_and_stencils, translate, maps, stencils, macros, NULL }; *pass; pass++) {
++  for (TraverseFunc * pass = (TraverseFunc[]){ 
++                                              einstein_sum, 
++                                              global_boundaries_and_stencils, 
++                                              translate, 
++                                              maps, 
++                                              stencils, 
++                                              macros, 
++                                              NULL }; *pass; pass++) {
+
+Context:
+
+[Computation kernels for external accelerators (e.g. GPUs)
+Stephane Popinet <popinet@basilisk.fr>**20240312142628
+ Ignore-this: 124e2a2e15af02a79e5473922d5b4dc1
+] 
+['Point point' is deprecated and has been replaced with foreach_point/region
+Stephane Popinet <popinet@basilisk.fr>**20240312134012
+ Ignore-this: 1d850dd0cfd4d6d1ae6e1cdf2f1b7722
+] 
+[Restructured foreach stencils in preparation for GPUs
+Stephane Popinet <popinet@basilisk.fr>**20240122173306
+ Ignore-this: 4696e1a98ff349a0eb5320f18cde5623
+] 
+[TAG release 24-01-15
+Stephane Popinet <popinet@basilisk.fr>**20240312093302
+ Ignore-this: e1645d1c630b49b8753829124796e7d0
+] 
+Patch bundle hash:
+379545972cf5682d7ecc0963e7834a56485536dc

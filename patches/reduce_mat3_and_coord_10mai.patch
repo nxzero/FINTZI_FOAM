@@ -1,0 +1,152 @@
+1 patch for repository http://basilisk.fr/basilisk:
+
+patch 9629f6f5ea2f6bd9b208981ca3f7d7bbb3652744
+Author: nicolas.fintzi@etu.sorbonne-universite.fr
+Date:   Fri May 10 10:26:20 UTC 2024
+  * reduction on array of coord and mat3 structs
+
+New patches:
+
+[reduction on array of coord and mat3 structs
+nicolas.fintzi@etu.sorbonne-universite.fr**20240510102620
+ Ignore-this: 5381c6ace3ca3699faef8d4574e77ae5
+] hunk ./src/ast/translate.c 3836
++		strcmp (type, "mat3") &&
+hunk ./src/ast/translate.c 3852
+-	      ast_after (n, "mpi_all_reduce_array(", t->start, ",", type, ",");
+-	      mpi_operator (n, reduction->child[2]);
+-	      ast_right_terminal (n)->after = ast_str_append (array, ast_right_terminal (n)->after);
+-	      ast_after (n, ");");
++        if(strcmp (type, "coord") && strcmp (type, "mat3")) {
++          ast_after (n, "mpi_all_reduce_array(", t->start, ",", type, ",");
++          mpi_operator (n, reduction->child[2]);
++          ast_right_terminal (n)->after = ast_str_append(array, ast_right_terminal (n)->after);
++          ast_after (n, ");");
++        } else {
++          // cast the adress of the first member into a double for coord and mat3
++          ast_after (n, "mpi_all_reduce_array((double *)", t->start, ",double,");
++          mpi_operator (n, reduction->child[2]);
++          char s[100];
++          snprintf (s,100, "sizeof(%s)/(sizeof(double))", t->start);
++          ast_after (n,s,");");
++			  }
+hunk ./src/ast/translate.c 3867
+-	      char s[20] = "1";
+-	      ast_after (n, "mpi_all_reduce_array(&", t->start);
+-	      if (strcmp (type, "coord"))
+-		ast_after (n, ",", type);
+-	      else {
+-		TranslateData * d = data;
+-		snprintf (s, 19, "%d", d->dimension);
+-		ast_after (n, ".x,double");
+-	      }
+-	      ast_after (n, ",");
+-	      mpi_operator (n, reduction->child[2]);
+-	      ast_after (n, s, ");");
++        char s[100] = "1";
++        if (strcmp (type, "coord") && strcmp (type, "mat3")){
++          ast_after (n, "mpi_all_reduce_array(&", t->start,",", type);
++        } else {
++          // cast the adress of the first member into a double for coord and mat3
++          ast_after (n, "mpi_all_reduce_array((double *)&", t->start,",double");
++      	  snprintf (s, 100, "sizeof(%s)/(sizeof(double))", t->start);
++        }
++        ast_after (n, ",");
++        mpi_operator (n, reduction->child[2]);
++        ast_after (n, s, ");");
+hunk ./src/common.h 909
++typedef struct {
++  coord x, y, z;
++} mat3;
++
++OMP(omp declare reduction (+ : mat3 :
++			   omp_out.x.x += omp_in.x.x,
++			   omp_out.x.y += omp_in.x.y,
++			   omp_out.x.z += omp_in.x.z,
++			   omp_out.y.x += omp_in.y.x,
++			   omp_out.y.y += omp_in.y.y,
++			   omp_out.y.z += omp_in.y.z,
++			   omp_out.z.x += omp_in.z.x,
++			   omp_out.z.y += omp_in.z.y,
++			   omp_out.z.z += omp_in.z.z
++         ))
++
+hunk ./src/test/mpi-reduce.c 27
+-  foreach (reduction(+:p))
+-    foreach_dimension()
++  mat3 p2 = {0};
++  foreach (reduction(+:p) reduction(+:p2))
++    foreach_dimension(){
+hunk ./src/test/mpi-reduce.c 31
+-  fprintf (qerr, "%g %g\n", p.x, p.y);
++      p2.x.x++;
++    }
++  fprintf (qerr, "%g %g %g %g\n", p.x, p.y, p2.x.x, p2.y.y);
++
++  // test array of coord and mat3 reduction 
++
++  #define arr_size 10
++  coord P[arr_size] = {{0}};
++  mat3 P2[arr_size] = {{{0}}};
++  foreach (reduction(+:P[:arr_size]) reduction(+:P2[:arr_size])) 
++    foreach_dimension(){
++      P[(int)(10*fabs(x))].x++;
++      P2[(int)(10*fabs(x))].x.x++;
++    }
++
++  char * _x="x",* _y="y";
++  foreach_dimension(){
++    fprintf (qerr,"P.%s : ", _x);
++    for (int i = 0; i < arr_size; i++) 
++        fprintf (qerr, "%g ", P[i].x);
++    fputc ('\n', qerr);
++    fprintf (qerr,"P.%s.%s : ", _x,_x);
++    for (int i = 0; i < arr_size; i++) 
++        fprintf (qerr, "%g ", P2[i].x.x);
++    fputc ('\n', qerr);
++  }
+hunk ./src/test/mpi-reduce.ref 3
+-4096 4096
++4096 4096 4096 4096
++P.x : 384 448 384 448 384 384 448 384 448 384 
++P.x.x : 384 448 384 448 384 384 448 384 448 384 
++P.y : 384 448 384 448 384 384 448 384 448 384 
++P.y.y : 384 448 384 448 384 384 448 384 448 384 
+hunk ./src/test/mpi-reduce.ref 10
+-4096 4096
++4096 4096 4096 4096
++P.x : 384 448 384 448 384 384 448 384 448 384 
++P.x.x : 384 448 384 448 384 384 448 384 448 384 
++P.y : 384 448 384 448 384 384 448 384 448 384 
++P.y.y : 384 448 384 448 384 384 448 384 448 384 
+hunk ./src/test/mpi-reduce.ref 17
+-4096 4096
++4096 4096 4096 4096
++P.x : 384 448 384 448 384 384 448 384 448 384 
++P.x.x : 384 448 384 448 384 384 448 384 448 384 
++P.y : 384 448 384 448 384 384 448 384 448 384 
++P.y.y : 384 448 384 448 384 384 448 384 448 384 
+hunk ./src/test/openmp-reduce.ref 3
+-4096 4096
++4096 4096 4096 4096
++P.x : 384 448 384 448 384 384 448 384 448 384 
++P.x.x : 384 448 384 448 384 384 448 384 448 384 
++P.y : 384 448 384 448 384 384 448 384 448 384 
++P.y.y : 384 448 384 448 384 384 448 384 448 384 
+
+Context:
+
+['Point point' is deprecated and has been replaced with foreach_point/region
+Stephane Popinet <popinet@basilisk.fr>**20240312134012
+ Ignore-this: 1d850dd0cfd4d6d1ae6e1cdf2f1b7722
+] 
+[Restructured foreach stencils in preparation for GPUs
+Stephane Popinet <popinet@basilisk.fr>**20240122173306
+ Ignore-this: 4696e1a98ff349a0eb5320f18cde5623
+] 
+[TAG release 24-01-15
+Stephane Popinet <popinet@basilisk.fr>**20240312093302
+ Ignore-this: e1645d1c630b49b8753829124796e7d0
+] 
+Patch bundle hash:
+e396102c90ac2bd8aeebf0b1a3c7bcfaad19ca57

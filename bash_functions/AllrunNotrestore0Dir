@@ -30,3 +30,4 @@ simpleFoam -postProcess -latestTime > log.forces
 sed -i 's/SRFSimpleFoam/simpleFoam/' system/controlDict
 
 #------------------------------------------------------------------------------
+paraFoam -touch-all

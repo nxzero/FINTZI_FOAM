@@ -277,7 +277,7 @@ class Suspension:
         x1 = (valuex[:-1] + valuex[1:])/2
         number_of_samples = len(self.DataRaw.index) 
         density_of_particles = 1/self.Ls**2
-        weight = math.pi*(valuex[1:]**2-valuex[:-1]**2) *  self.pair_number * number_of_samples * density_of_particles
+        weight = math.pi*(valuex[1:]**2 - valuex[:-1]**2) *  self.pair_number * number_of_samples * density_of_particles
         self.r = x1
         self.Pr = H/weight
         return self

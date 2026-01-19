@@ -7,7 +7,7 @@ from py_functions.moment_Cox import *
 from py_functions.triPP_class import *
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import mpmath
+import math
 import matplotlib
 from mpl_toolkits.mplot3d import Axes3D
 
