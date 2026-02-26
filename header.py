@@ -11,39 +11,42 @@ from matplotlib.colors import PowerNorm
 import os
 import sys
 from mpmath import gammainc,gamma
+import itertools 
 
-# mp.rcParams.update({
-#     'text.usetex' : True,
-#     'font.family': 'sans-serif',
-#     'font.sans-serif': ['Helvetica'],
-#     'font.size': 10,
-#     'axes.grid': True,
-#     'grid.linestyle': '--',
-#     'grid.linewidth': 0.5,
-#     'grid.alpha': 0.5,
-#     'xtick.major.width': 0.5,
-#     'xtick.minor.width': 0.25,
-#     'ytick.major.width': 0.5,
-#     'ytick.minor.width': 0.25,
-#     'legend.frameon': False,
-#     'figure.figsize': [3.39, 2.1],
-#     'lines.markersize': 5,
-#     'lines.linewidth':1,
-# })
-# mp.rcParams['savefig.format'] = 'pdf'
-# mp.rcParams['savefig.bbox'] = 'tight'
+
 import scienceplots
 import matplotlib.pyplot as plt 
 
 # plt.style.use('science')
 # plt.style.use('nature')
 plt.style.use('science')
-plt.rcParams['image.cmap'] = 'turbo'
+plt.rcParams['image.cmap'] = 'gray'
 plt.rcParams["figure.figsize"] =(3.5  * 0.8, 2.625  * .8)
 plt.rcParams['lines.markersize'] = plt.rcParams['lines.markersize'] *0.8
-colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-ms = ['o','^','s','d','>','<']
+plt.rcParams['lines.linewidth'] /= 1.5
+
+colors=["#ef476f","#f78c6b","#ffd166","#06d6a0","#118ab2","#073b4c"]
+
+
+from cycler import cycler
+ms = [
+    '.',   # point
+    '<',   # triangle_left
+    ',',   # pixel
+    'v',   # triangle_down
+    'p',   # pentagon
+    '^',   # triangle_up
+    '>',   # triangle_right
+    's',   # square
+    'o',   # circle
+    '8',   # octagon
+]
+marker = itertools.cycle(ms)
 ls = [':','--','-.','-','.']
+
+cy=cycler('color',colors)*cycler('linestyle', ['-']) 
+plt.rcParams['axes.prop_cycle'] = cy  
+
 
 ##functions for mean neaerst distance
 from mpmath import gammainc,gamma

@@ -1,7 +1,5 @@
 from  header_tensor_functions import *
 
-
-
 ###### Solving and physical para
 
 gam, zeta, bet = symbols("Gamma zeta beta")
@@ -120,7 +118,6 @@ def generate_perm_with_cst(ids,Cst):
         terms.append(Id(i1,ix) * expr)
     return TensAdd(*terms)
 
-from itertools import combinations
 
 def harmonic_perm_I_h(ids,Cst,h0=False,Growing=False):
     odd = False

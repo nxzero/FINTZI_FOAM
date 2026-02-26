@@ -2,13 +2,13 @@
 ###################
 ## TO DO LIST OPTIMIZE
 # we must Rtor at the right place (begining and end not within loops )
+# I must subs h by hg_2 to gain efficienvcy
 from sympy.tensor.tensor import TensorIndexType,tensor_indices, contract_metric,TensorHead, TensAdd, Tensor,TensMul,TensExpr,TensorSymmetry
 from sympy.tensor.toperators import PartialDerivative
 from sympy import pi
 from sympy import *
 from sympy.printing.latex import  print_latex
-
-from itertools import product
+from itertools import combinations,product,permutations
 sym2 = TensorSymmetry.fully_symmetric(2)
 asym2 = TensorSymmetry.fully_symmetric(-2)
 sym3 = TensorSymmetry.fully_symmetric(3)
@@ -136,9 +136,10 @@ def grad(expr,*vs):
 
 ### Traverse function 
 def traverse(expr,func, data=0):
+
     if isinstance(expr,TensExpr):
         expr = expr.contract_metric(Id)
-        if expr: expr = expr.canon_bp() 
+        if isinstance(expr,TensExpr): expr = expr.canon_bp() 
         else: return 0
         
         if isinstance(expr, TensAdd):
@@ -151,8 +152,10 @@ def traverse(expr,func, data=0):
 ### CONTRACTION FUNCTION 
 def contract_X(expr,data):
     X,result = data
-    if result == 0: result = R(2)
+    if result == 0 and X==x: result = R(2)
     if X == 0 or X == x: X = (x,x)
+    # If expr is only a single tensor it is not gonna be contracted 
+    if isinstance(expr,Tensor) or not isinstance(expr,TensExpr): return expr
 
     other_tensors = TensMul(*[a for a in expr.args if not (a.head in X if isinstance(a,TensExpr) else 0)] )
     tensor = [a for a in expr.args if isinstance(a,TensExpr) and a.head in X ] 
@@ -177,8 +180,9 @@ def contract_expr(expr,data):
             expr = traverse(expr,contract_X,dat)
     else:
         expr = traverse(expr,contract_X,data) 
-    if not expr.get_indices() and isinstance(expr,TensAdd):
-        expr = Add(*[a for a in expr.args])
+    if isinstance(expr,TensExpr):
+        if not expr.get_indices() and isinstance(expr,TensAdd):
+            expr = Add(*[a for a in expr.args])
     return expr
 
 ###############################""
@@ -197,7 +201,7 @@ def int_X(expr,data):
             return 0
         else:
             factor = Mul(*[i+3 for i in range(len(tensor))[2::2]])*3/4
-            exprI = generate_perm(TensMul(*tensor).get_indices())/factor
+            exprI = generate_perm(TensMul(*tensor).get_indices()).canon_bp()/factor
             return other_tensors*exprI*pi
     else:
         return expr*4*pi ## integration of a cst 
@@ -511,6 +515,35 @@ def sh(*idx):
     
 def n(idx):
     return x(idx)*R(-1)
+
+## decaying armonics but explicit (faster)
+def facto_facto(n):
+    return (-1)**n * Mul(*[(2*n -2*k-1) for k in range(n)])
+
+def h_g2(*ids):
+    ids = [-i for i in ids]
+    odd = False
+    if len(ids)%2: odd =True
+    terms = []
+    h0=True
+    if odd: orders = [i+1 for i in range(len(ids))[::2]]
+    elif h0: orders  = [0]+ [i+2 for i in range(len(ids))[::2]]
+    else: orders = [i+2 for i in range(len(ids))[::2]]
+
+    for i,order in enumerate(orders[::-1]):
+        combos = list(combinations(ids, order))
+        coef = facto_facto(order+i)
+        # display(order,coef)
+        for ix in combos:
+            remaining_id = [idx for idx in ids if not idx in ix]
+            xis_prod = Mul(*[x(ids) for ids in ix])
+            if len(remaining_id) >= 2:
+                expr = xis_prod*generate_perm(remaining_id).canon_bp()
+            else: 
+                expr = xis_prod
+            terms.append(expr*coef*R(-2*(order+i)-1))
+    return TensAdd(*terms)
+
 ### simplify function 
 
 def Rtor(X):
@@ -536,9 +569,9 @@ def simplify_tens(X):
 def compute_sol(X,sol):
     return simplify(X.subs(sol))
 
-def compute_surf(X,at_r = 1):
+def compute_surf(X,contract_rules= (x,0),at_r = 1):
     if X:
-        return  simplify(Rto2(contract_expr(X,(x,0)),at_r=at_r))
+        return  simplify(Rto2(contract_expr(X,contract_rules),at_r=at_r))
     return 0 
         
 def compute(X, contract_rules= (x,0),scalars_rules=Rtor):
@@ -547,8 +580,8 @@ def compute(X, contract_rules= (x,0),scalars_rules=Rtor):
     return 0
 
 ##integration over the unit surface 
-def S_int(X):
-    return  simplify(compute_surf(int_expr(X,x)))
+def S_int(X,at_r = 1):
+    return  simplify(compute_surf(int_expr(X,x)),at_r=at_r)
 
 ## itegration on a volume around the particle
 def V_int(expr,x=x,vm=1,vp=oo,Wolfram=False): ## the var is on r,x 
