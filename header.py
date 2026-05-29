@@ -25,10 +25,10 @@ plt.rcParams["figure.figsize"] =(3.5  * 0.8, 2.625  * .8)
 plt.rcParams['lines.markersize'] = plt.rcParams['lines.markersize'] *0.8
 plt.rcParams['lines.linewidth'] /= 1.5
 
-colors=["#ef476f","#f78c6b","#ffd166","#06d6a0","#118ab2","#073b4c"]
 
 
 from cycler import cycler
+colors=["#ef476f","#f78c6b","#ffd166","#06d6a0","#118ab2","#073b4c"]
 ms = [
     '.',   # point
     '<',   # triangle_left
@@ -44,8 +44,8 @@ ms = [
 marker = itertools.cycle(ms)
 ls = [':','--','-.','-','.']
 
-cy=cycler('color',colors)*cycler('linestyle', ['-']) 
-plt.rcParams['axes.prop_cycle'] = cy  
+# cy=cycler('color',colors)*cycler('linestyle', ['-']) 
+# plt.rcParams['axes.prop_cycle'] = cy  
 
 
 ##functions for mean neaerst distance

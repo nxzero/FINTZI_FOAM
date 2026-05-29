@@ -1,8 +1,9 @@
-
 ###################
 ## TO DO LIST OPTIMIZE
+# re-code a lot of funcitons with teh replace method which will be a lot more efficient. 
 # we must Rtor at the right place (begining and end not within loops )
 # I must subs h by hg_2 to gain efficienvcy
+# The best choice for rtoR is to put this just befor taking the derivative and NOWHERE ELSE Acctually 
 from sympy.tensor.tensor import TensorIndexType,tensor_indices, contract_metric,TensorHead, TensAdd, Tensor,TensMul,TensExpr,TensorSymmetry
 from sympy.tensor.toperators import PartialDerivative
 from sympy import pi
@@ -20,8 +21,8 @@ d = L.metric
 Lev = L.epsilon
 
 x = TensorHead("x", [L]) #position vector
-idxs = tensor_indices("i j k l m k_1 k_2 k_3 k_4 k_5 k_6 k_7 k_8 k_9 l_1 l_2 l_3 l_4 l_5",L)
-i, j, k, l, m, k1, k2, k3, k4, k5, k6, k7, k8, k9, l1, l2, l3, l4, l5 = idxs
+idxs = tensor_indices("i j k l m k_1 k_2 k_3 k_4 k_5 k_6 k_7 k_8 k_9 l_1 l_2 l_3 l_4 l_5 l_6",L)
+i, j, k, l, m, k1, k2, k3, k4, k5, k6, k7, k8, k9, l1, l2, l3, l4, l5, l6 = idxs
 ik1k2etc = tensor_indices("i k_1 k_2 k_3 k_4 k_5 k_6 k_7 k_8 k_9 k_10",L)
 l1l2l3tc = tensor_indices("i l_1 l_2 l_3 l_4 l_5 l_6 l_7 l_8 l_9 l_10",L)
 
@@ -34,7 +35,7 @@ class Scalar_Tensor(Symbol):
         return 0
 
 
-r = symbols("r")
+r = symbols("r",positive=True)
 
 class R(Scalar_Tensor):
     def __new__(cls,N):
@@ -56,11 +57,11 @@ class R(Scalar_Tensor):
 class X(Scalar_Tensor):
     ### X = r(e.n - 1)/2 
     def __new__(cls,e,normal_coord=False):
-        obj = Symbol.__new__(cls,f'X(\\textbf{{x}},\\textbf{{{e.name}}})')
+        obj = Symbol.__new__(cls,f'X')
         obj.e = e
         obj.Re=0
         if normal_coord: 
-            obj.Re = Symbol('Re')
+            obj.Re = Symbol('Re',positive=True)
 
         return obj
 
@@ -73,6 +74,30 @@ class X(Scalar_Tensor):
             return (self.e(idx) - v *R(-1))/2
         else:
             return 0
+# tensor that may posses a derivative idicated with :
+# \grad_j T^ijk = T^ijk_j (it just add indexes but that is enough)
+# the symmetry is like it is symmetric on the derivative and that T has a 
+# non modified sym
+class TensorFieldHead(TensorHead):
+    # so one still has to specify this attribute mannually
+    true_symmetry=None
+    true_order=None
+    def __call__(self, *args):
+        TF = TensorField(self, args)
+        return TF
+    
+class TensorField(Tensor):
+    def _eval_partial_derivative(self, v):
+        idx = -v.get_indices()[0]
+        sym = self.head.true_symmetry+[self.head.rank-self.head.true_order+1] 
+
+        TF = TensorFieldHead(self.head.name,
+                               self.head.index_types+[L]
+                               ,TensorSymmetry.direct_product(*sym)
+                               )(*self.get_indices(),idx)
+        TF.head.true_order = self.head.true_order
+        TF.head.true_symmetry = self.head.true_symmetry
+        return TF
 
 
 ### GRADIENT FUNCTIONs 
@@ -125,12 +150,11 @@ def D(expr,v):
 ####the gradient to be used
 def grad(expr,*vs):
     for v in vs:
-        expr = D(expr, v)
+        expr = D(rtoR(expr), v) #very important to take r--> R before the derivatives
         if isinstance(expr,TensExpr): 
             expr = expr.contract_delta(d)
             if expr: expr = expr.contract_metric(Id) # it takes more time 
-            expr = rtoR(simplify(Rtor(expr))) # better for optimisation
-
+            expr = simplify(Rtor(expr)) # better for optimisation
     return expr
 
 
@@ -152,26 +176,38 @@ def traverse(expr,func, data=0):
 ### CONTRACTION FUNCTION 
 def contract_X(expr,data):
     X,result = data
-    if result == 0 and X==x: result = R(2)
+    if result == 0 and X==x: result = r**(2)
     if X == 0 or X == x: X = (x,x)
     # If expr is only a single tensor it is not gonna be contracted 
     if isinstance(expr,Tensor) or not isinstance(expr,TensExpr): return expr
 
     other_tensors = TensMul(*[a for a in expr.args if not (a.head in X if isinstance(a,TensExpr) else 0)] )
     tensor = [a for a in expr.args if isinstance(a,TensExpr) and a.head in X ] 
-
+    # display(tensor,other_tensors)
     #detect and replace
     contracted_tensor = []
     number_of_contractions = 0 
+    #this code works for contraction with only one idx 
     for i,ii in enumerate(tensor):
         for j,jj in enumerate(tensor[i+1:]):
-            if ii.get_indices()[0] == -jj.get_indices()[0] and ((ii.head, jj.head) == X 
-            or (jj.head, ii.head) == X):
-                number_of_contractions += 1
-                contracted_tensor.append(i)
-                contracted_tensor.append(j+i+1)
+            if ii.head.rank == 1 and jj.head.rank == 1:
+                if (ii.get_indices()[0] == -jj.get_indices()[0] 
+                    and ((ii.head, jj.head) == X or (jj.head, ii.head) == X)):
+                    number_of_contractions += 1
+                    contracted_tensor.append(i)
+                    contracted_tensor.append(j+i+1)
+            if ii.head.rank == 2 or jj.head.rank == 2: 
+                if ((-jj.get_indices()[0] in ii.get_indices() 
+                      or -ii.get_indices()[0] in jj.get_indices())
+                    and ((ii.head, jj.head) == X or (jj.head, ii.head) == X)
+                    and result==0):
+                    number_of_contractions += 1
+                    contracted_tensor.append(i)
+                    contracted_tensor.append(j+i+1) 
 
     final_results = TensMul(*[t for i,t in enumerate(tensor) if i not in contracted_tensor]) * result**number_of_contractions
+    # display(final_results)
+
     return other_tensors*final_results
 
 def contract_expr(expr,data):
@@ -192,10 +228,10 @@ def contract_expr(expr,data):
 def int_X(expr,data):
     ### the goal is xxxx= II + II ... with all the permutation 
     X = data ###the tensor head that represent the position vec
-    if expr.has(X):
+    if isinstance(expr,Basic) and expr.has(X):
         tensor = [a for a in expr.args if isinstance(a,TensExpr) and a.head == X ] 
         # * R(len(tensor)), so that tensor represent acctually the normal vector x*R(-1) 
-        other_tensors =  R(len(tensor))*TensMul(*[a for a in expr.args 
+        other_tensors =  r**(len(tensor))*TensMul(*[a for a in expr.args 
                                   if not (a.head == X if isinstance(a,TensExpr) else 0)] )
         if len(tensor) % 2: # int of an odd number of n
             return 0
@@ -206,8 +242,8 @@ def int_X(expr,data):
     else:
         return expr*4*pi ## integration of a cst 
 
-def int_expr(expr,data=x):
-    return traverse(expr,int_X,data)
+def int_expr(expr,data=x):#integrate on spherical angles 
+    return traverse(expr,int_X,data)*r**2 #metric 
 
 
 ### generate all the permultaions of Id(i,j)*Id(k,l) based on the set of index
@@ -370,7 +406,7 @@ def FT_tensor(expr,data):
 
         # scalars = apart(scalars,r_scalar)
         ### transform scalars 
-        FTscalar = rtoR(FT_scalar(scalars,data)) #need to be diff
+        FTscalar = FT_scalar(scalars,data) #need to be diff
 
         ### transform tensor just the nabla that comes with the dirac
         FTtensor_nabla = TensMul(
@@ -394,7 +430,7 @@ def FT_tensor(expr,data):
             return FTexpr
     else: 
         return FT_scalar(expr,data)
-
+# TODO add the fourier transform of exp and its inverse ! 
 def FT_scalar(expr,data):
     inverse,X,r_scalar,r_func = data
     FTexpr = 0
@@ -443,7 +479,7 @@ def FT(n,data): #returns the fourier transform ---or inverse--- of r^n
 
     elif n.has(ln(r_scalar)):
         if isinstance(n,ln):  
-            FT_r_to_n = - 2 * pi**2 * R(-3) +8*pi**3* Dirac() *(1-EulerGamma)
+            FT_r_to_n = - 2 * pi**2 * r_scalar**(-3) +8*pi**3* Dirac() *(1-EulerGamma)
         else: 
             if isinstance(n,Pow): return display('POW')
             rs = Mul(*[a for a in n.args if not isinstance(a,ln)])
@@ -498,23 +534,23 @@ def h(*idx):
         xs = [x(-i) for i in idx]
         return  grad(R(-1),*xs)
     else:
-        return R(-1)
+        return 1/r
     
 def g(*idx):
     if idx:
-        return R(len(idx)*2+1) * h(*idx)
+        return r**(len(idx)*2+1) * h(*idx)
     else:
         return 1
     
 def sh(*idx):
     N = -Mul(*[-(3 +2*i) for i in range(len(idx))[:-1]])  
     if idx:
-        return R(len(idx)+1) * h(*idx) / N 
+        return r**(len(idx)+1) * h(*idx) / N 
     else:
         return 1
     
 def n(idx):
-    return x(idx)*R(-1)
+    return x(idx)/r # norm of position 
 
 ## decaying armonics but explicit (faster)
 def facto_facto(n):
@@ -541,7 +577,7 @@ def h_g2(*ids):
                 expr = xis_prod*generate_perm(remaining_id).canon_bp()
             else: 
                 expr = xis_prod
-            terms.append(expr*coef*R(-2*(order+i)-1))
+            terms.append(expr*coef*r**(-2*(order+i)-1))
     return TensAdd(*terms)
 
 ### simplify function 
@@ -549,14 +585,16 @@ def h_g2(*ids):
 def Rtor(X):
     if X: return X.replace(lambda arg: type(arg) == R,lambda arg: r**arg.N)
     else: return 0
+
 def Rto1(X):
     return Rtor(X).subs(r,1)
+
 def Rto2(X,at_r):
-    return Rto1( xtonR(Rtor(X)).subs(r,at_r) )
+    return Rto1(xtonR(Rtor(X)).subs(r,at_r) ) #very baddly done 
 
 def rtoR(X):
     return X.replace(lambda arg:  arg==r, lambda arg: R(1)
-            ).replace(lambda arg:  type(arg)==Pow and type(arg.args[0]) == R, 
+            ).replace(lambda arg:  type(arg)==Pow and type(arg.args[0]) == r, 
             lambda arg: R(arg.args[1]))
 def xtonR(X):
     return X.replace(lambda arg:  isinstance(arg,Tensor) and arg.head==x, 
@@ -574,21 +612,21 @@ def compute_surf(X,contract_rules= (x,0),at_r = 1):
         return  simplify(Rto2(contract_expr(X,contract_rules),at_r=at_r))
     return 0 
         
-def compute(X, contract_rules= (x,0),scalars_rules=Rtor):
+def compute(X, contract_rules= (x,0)):
     if X:
-        return simplify(scalars_rules(contract_expr(X,contract_rules)))
+        return simplify(Rtor(contract_expr(X,contract_rules)))
     return 0
 
 ##integration over the unit surface 
 def S_int(X,at_r = 1):
-    return  simplify(compute_surf(int_expr(X,x)),at_r=at_r)
+    return  simplify(compute_surf(int_expr(X,x),at_r=at_r))
 
 ## itegration on a volume around the particle
 def V_int(expr,x=x,vm=1,vp=oo,Wolfram=False): ## the var is on r,x 
     # the r**2 is the metric coef
     surf_int = Rtor(int_expr(expr,x))
     # if surf_int: #if it is not zero
-    return simplify(int_scalar_expr(r**2 *surf_int,r,vm,vp,Wolfram))
+    return simplify(int_scalar_expr(surf_int,r,vm,vp,Wolfram))
     # else: 
         # return 0
 

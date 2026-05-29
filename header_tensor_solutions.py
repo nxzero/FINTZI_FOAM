@@ -20,7 +20,7 @@ const_all = [*Cf,*Cd,*Cf2,*Cd2,*Cf3,*Cd3]
 def const_to_zero(X,const=const_all):
     return X.replace(lambda arg: arg in const, lambda arg: 0 ).doit()
 
-def solve_all(Eqs,cancel_eq=[],const=const_all,Display=True):
+def solve_all(Eqs,cancel_eq=[],const=const_all,Display=True,get_system_of_eq=False,LUsolve=False):
     scalar_eqs = []
     for expr in Eqs:
         expr = simplify(expr.canon_bp().subs(cancel_eq).doit())
@@ -48,29 +48,44 @@ def solve_all(Eqs,cancel_eq=[],const=const_all,Display=True):
         display('system:')
         for eq in scalar_eqs_without_r:
             display(eq)
-        display('solutions: ')
-    sols = solve(scalar_eqs_without_r,const)
-  
+        
+    
+    #get unique list of const that appear in the eq
+    const = list(set([C  for C in const for eq in scalar_eqs_without_r if eq.has(C) ]))
+    
+    if get_system_of_eq: 
+        return scalar_eqs_without_r,const
+    
+    if LUsolve:
+        A,B = linear_eq_to_matrix(scalar_eqs_without_r,const)
+        A = simplify(A)
+        if Display: display( A,B)
+        sols =  A.gauss_jordan_solve(B)[0]
+        
+    else: 
+        sols = list(linsolve(scalar_eqs_without_r,const))[0]
     if Display: 
-        for key,s  in sols.items(): 
-            display(Eq(key ,s) )
-    return [(key, factor(s)) for key,s in sols.items()]
+        display('solutions: ')
+        for C,S  in zip(const,sols): 
+            display(Eq(C ,S))
+            
+    return [(C, simplify(S)) for C,S in zip(const,sols)]
 ##### Iverst the stokes equations for q given force field 
 
 def invert_stokes(forcing,U1=None,P1=None,remove_dirac=True,Display=True,const=const_all):
     ###compute U and P with fourier transform
     if not U1 and not P1:
         FTforcing = compute(FT_expr(compute(forcing)))
-        ftU = compute(  FTforcing * (x(-i)*x(k)*R(-4) - Id(-i,k)*R(-2)  ))
-        ftP = compute(  FTforcing *  I * x(-i) * R(-2))
-        U1 = rtoR(compute(FT_expr(ftU,inverse=True)))
-        P1 = rtoR(compute(FT_expr(ftP,inverse=True))) 
+        ftU = compute(  FTforcing * (x(-i)*x(k)*r**(-4) - Id(-i,k)*r**(-2)  ))
+        ftP = compute(  FTforcing *  I * x(-i) * r**(-2))
+        U1 = compute(FT_expr(ftU,inverse=True))
+        P1 = compute(FT_expr(ftP,inverse=True))
         if remove_dirac:
             U1=U1.subs(Dirac(),0).doit()
             P1=P1.subs(Dirac(),0).doit()
         return U1.substitute_indices((k,i)),P1.substitute_indices((k,i))
     else:
-        forcingP = grad(rtoR(forcing),x(i))
+        forcingP = grad(forcing,x(i))
         Eqp = compute(grad(P1, x(-l1),x(l1)) + forcingP )
         divU = compute(grad(U1,x(i)))
         EqU = compute(grad(U1,x(l1),x(-l1)) - grad(P1,x(-i)) - forcing)
@@ -83,8 +98,6 @@ def homogeneous_solution(Uho,Pho,Upo,Uhi=None,Phi=None,Upi=None):
         divuf = compute(grad(Uho,x(i)))
         Eqvel2 = compute_surf(Uho + Upo)
         sols = solve_all([divuf,Eqvel2],Display=False)
-        Uho = const_to_zero(Uho.subs(sols))
-        Pho = const_to_zero(Pho.subs(sols))
         Uho = const_to_zero(Uho.subs(sols))
         Pho = const_to_zero(Pho.subs(sols))
         return Uho,Pho
@@ -102,6 +115,8 @@ def homogeneous_solution(Uho,Pho,Upo,Uhi=None,Phi=None,Upi=None):
     Phi = const_to_zero(Phi.subs(sols))
     return Uho,Pho,Uhi,Phi
 
+##### BELOW is harmonics function or non harmonics funciton in spherical coordinates of course
+# but express as combinaison of unit tensor 'x' and scalar constants. 
 ##### Generate harmonics permutations of order n 
 
 def generate_perm_with_cst(ids,Cst):
@@ -141,7 +156,6 @@ def harmonic_perm_I_h(ids,Cst,h0=False,Growing=False):
             terms.append( expr)
     return TensAdd(*terms)
 
-#### not harmonics func 
 
 ### non-harmonics function (all permutaioin xII r^n )
 def generate_perm_with_r(ids,Cst,Order,logs=False):
@@ -154,10 +168,10 @@ def generate_perm_with_r(ids,Cst,Order,logs=False):
             expr = generate_perm(remaining_id) 
         r_expr = 0
         for n in range(*Order):
-            r_expr += Cst[1][Cst[0]] * R(n)
+            r_expr += Cst[1][Cst[0]] * r**n
             Cst[0] = Cst[0]+1
             if logs: 
-                r_expr += Cst[1][Cst[0]] * R(n) * log(R(1))
+                r_expr += Cst[1][Cst[0]] * r**n * log(r)
                 Cst[0] = Cst[0]+1
         terms.append(Id(i1,ix) * expr * r_expr)
     return TensAdd(*terms)
@@ -180,10 +194,10 @@ def perm_I_x(ids,Cst,h0=False,Order=[],logs=False):
                 expr = xis_prod*generate_perm_with_r(remaining_id,Cst,Order,logs)
             else: 
                 for n in range(*Order):
-                    r_expr += Cst[1][Cst[0]] * R(n)
+                    r_expr += Cst[1][Cst[0]] * r**n
                     Cst[0] = Cst[0]+1
                     if logs: 
-                        r_expr += Cst[1][Cst[0]] * R(n) * log(R(1))
+                        r_expr += Cst[1][Cst[0]] * r**n * log(r)
                         Cst[0] = Cst[0]+1
                 expr = xis_prod*r_expr 
             terms.append( expr)
@@ -196,7 +210,7 @@ def P(*idxs,C=[],Growing=False,Order=[],logs=False,h0=False):
     Cst = [0,C]
     if not Order:
         expr = harmonic_perm_I_h(idxs,Cst,h0=h0,Growing=Growing)
-        return rtoR(Rtor(expr).canon_bp()).doit()
+        return expr.canon_bp().doit()
     else: 
         return perm_I_x(idxs,Cst,h0=True,Order=Order,logs=logs)
 
@@ -208,7 +222,7 @@ def U(*idxs,C=[],Growing=False,Order=[],logs=False):
     if not Order: 
         exprp = x(idxs[0])* harmonic_perm_I_h(idxs[1:],Cst,h0=False,Growing=Growing)/2
         expr  = exprp + harmonic_perm_I_h(idxs,Cst,h0=True,Growing=Growing)
-        return rtoR(Rtor(expr).canon_bp()).doit()
+        return expr.canon_bp().doit()
     else: 
         return perm_I_x(idxs,Cst,h0=True,Order=Order,logs=logs)
 
@@ -621,3 +635,10 @@ U1i = (-1/16)*1/(lamb**2 + 2*lamb + 1)*(3*lamb + r**2*(-6*lamb - 4) + 2)*u_r(i) 
 P1i = (-1/16)*r**(-3)*1/(lamb**2 + 2*lamb + 1)*(9*lamb**2 + 12*lamb + 4)*u_r(k)*x(-k) + (-1/160)*r**(-6)*1/(lamb**2 + 2*lamb + 1)*(-150*lamb**2*r**5 + 90*lamb**2*r**4 + 45*lamb**2*r**3 + 30*lamb**2*r**2 + 5*lamb**2 - 250*lamb*r**5 + 120*lamb*r**4 + 83*lamb*r**3 + 20*lamb*r**2 - 100*r**5 + 40*r**4 + 52*r**3)*u_r(k)*u_r(-k) + (1/160)*r**(-8)*1/(lamb**2 + 2*lamb + 1)*(-90*lamb**2*r**5 + 90*lamb**2*r**4 + 135*lamb**2*r**3 + 180*lamb**2*r**2 - 15*lamb**2 - 150*lamb*r**5 + 120*lamb*r**4 + 249*lamb*r**3 + 120*lamb*r**2 - 60*r**5 + 40*r**4 + 156*r**3)*u_r(k)*u_r(l)*x(-k)*x(-l)
 
 P1o = (5/8)*1/(lamb**2 + 2*lamb + 1)*(3*lamb + 2)*u_r(k)*x(-k) + (1/40)*1/lamb*r**2*1/(lamb**2 + 2*lamb + 1)*(63*lamb**2 + 42*lamb + 5*zeta*(r**2 - 1))*u_r(k)*u_r(-k) + (-1/40)*1/lamb*1/(lamb**2 + 2*lamb + 1)*(189*lamb**2 + 126*lamb + 10*r**2*zeta - 15*zeta)*u_r(k)*u_r(l)*x(-k)*x(-l)
+
+
+############################################################
+### Below are harmonics funciton written in terms of tensor constants
+### The idea comes from Barthès-Biesel 1972 On computer generated 
+# analytic solutions to the equations of fluid mechanics 
+
