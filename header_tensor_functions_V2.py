@@ -3,6 +3,14 @@
 # For instance if we pass just a tensor argument 
 # to all func it doesn't work but that should not happen 
 # Write all things with replace with wild expression wild tensor ? 
+# print functions 
+import time
+import sys 
+
+def printt( str, *str2 ): 
+    print(time.ctime(),'|' ,   str, *str2   )
+    sys.stdout.flush()
+    
 from sympy.tensor.tensor import TensorIndexType,tensor_indices, contract_metric,TensorHead, TensAdd, Tensor,TensMul,TensExpr,TensorSymmetry
 from itertools import combinations, permutations
 from sympy import *
@@ -83,10 +91,13 @@ def ntox(X):
 def x_to_mx(X):
     '''this is usefull to get the opposite if F(x) i.e. F(-x) '''
     if isinstance(X,list): return [x_to_mx(X) for X in X]
-    return X.replace(
-        lambda arg: isinstance(arg,Tensor) and arg.head.name == 'x',
-        lambda arg: -arg
-    ).doit()
+    if X:
+        return X.replace(
+            lambda arg: isinstance(arg,Tensor) and arg.head.name == 'x',
+            lambda arg: -arg
+        ).doit()
+    else: 
+        return X
 
 # tensor that may posses a derivative idicated with :
 # \grad_j T^ijk = T^ijk_j (it just add indexes but that is enough)
@@ -94,6 +105,7 @@ def x_to_mx(X):
 # non modified sym
 class TensorFieldHead(TensorHead):
     def __call__(self, *args):    
+        # this must be re-coded using head.symmetry.base and head.rank 
         return TensorField(self, args)
     
 class TensorField(Tensor):
@@ -222,46 +234,179 @@ def contract_expr(expr,data):
     return expr
 
 ###############################""
-#### surface and volume integration 
+#### Integration on the unit sphere (on the angles ) 
 ###############################""
 
-# for some reason replace iterate twice in the expression 
-# better doing one pass by one without too much else if 
-def int_X(expr):
-    ### the goal is xxxx= II + II ... with all the permutation 
-    tensor = [a for a in expr.args if isinstance(a,TensExpr) and a.head == x ] 
-    other_tensors =  r**(len(tensor))*TensMul(*[
-        a for a in expr.args if not (a.head == x if isinstance(a,TensExpr) else 0)
-        ])
-    factor = Mul(*[i+3 for i in range(len(tensor))[2::2]])*3/4
-    exprI = generate_perm(TensMul(*tensor).get_indices())/factor
-    return (other_tensors*exprI*pi).canon_bp()
-
-def int_expr(expr):#integrate on spherical angles 
-    if not isinstance(expr,TensExpr): return expr*4*pi
-    if isinstance(expr,Tensor): return expr*4*pi # assuming that x(i) alone never arise 
+def int_expr(expr):
+    """This function iter through every terms of an expression and integrate it 
+    on the unit sphere surface \iint f(\theta,\phi) d\theta d\phi """
+    if isinstance(expr,Tensor) and expr.head == x: 
+        return 0
+    elif isinstance(expr,Tensor):
+        return 4*pi*expr 
     expr = expr.contract_metric(Id).replace(
         lambda arg: isinstance(arg,TensMul) and arg.count(x) == 0,   
         lambda arg: 4*pi*arg
     ).replace(
         lambda arg: isinstance(arg,TensMul) and arg.count(x) != 0,   
-        lambda arg: S.Zero if arg.count(x) % 2 else  int_X(arg)
-    )
-    if expr: return expr.contract_metric(Id)
-    else: return S.Zero
+        lambda arg: int_X(arg) if (not arg.count(x) % 2 and not arg.has(TensorField)) 
+        else arg if arg.has(TensorField) else 0 
+     )
+    return expr
 
-### generate all the permultaions of Id(i,j)*Id(k,l) based on the set of index
-def generate_perm(ids):
-    i1 = ids[0]
-    terms = []
-    expr =1 
+def generate_perm_for_Id(ids):
+    """this recursive funcitons generate all the combianaison of index representing the 
+    indices of a product of identity tensor"""
+    terms,expr,i1 = [],[],ids[0]
     for i,ix in enumerate(ids[1:]):
         remaining_id = ids[1:i+1]+ids[i+2:]
         if len(remaining_id) >= 2:
-            expr = generate_perm(remaining_id) 
-        terms.append(Id(i1,ix) * expr)
-    return TensAdd(*terms)
+            expr = generate_perm_for_Id(remaining_id) 
+            if len(expr) > 1: terms += [[(i1,ix)] +  exp for exp in expr ]
+            else: terms += [[(i1,ix)] + expr]    
+        else: terms += [(i1,ix)] + expr   
+    return terms 
 
+def get_tensor_symmetry(tensor): 
+    """That function retuns the groups of symmetry of a tensor but 
+    does't specify if it is symmetric or skew symmetric"""
+    if isinstance(tensor,TensMul): 
+        syms = []
+        for ten in tensor.args: 
+            if get_tensor_symmetry(ten):
+                syms = syms + get_tensor_symmetry(ten) 
+        return syms 
+    
+    syms = tensor.head.symmetry.base
+    ids = tensor.get_indices()
+    ids_sym = [] 
+    for ii in range(len(syms)): 
+        if syms[ii]  == (syms[ii-1]+1): 
+            ids_sym = ids_sym[:-1] + [(*ids_sym[-1],ids[syms[ii]+1])]
+        else:
+            ids_sym = ids_sym + [(ids[syms[ii]],ids[syms[ii]+1])]
+    for ii in ids: 
+        if ii not in [jj for pair in ids_sym for jj in pair]: 
+            ids_sym = ids_sym + [(ii,)]
+    return ids_sym
+
+def int_X(expr):
+    """This function replace the Tensor *xxxx --> the unique permutaions of Tensor *Id*Id 
+    This is optimized in the same way as it is done in the REDUCE program of :
+    On Computer Generated Analytic Solutions to ... (bathèse-biesel et al 1972)"""
+    idx_xs = TensMul(*[a for a in expr.args 
+                       if isinstance(a,TensExpr) and a.head == x]).get_free_indices()     
+    tensor = TensMul(*[a for a in expr.args if isinstance(a,TensExpr) and not a.head == x])
+    if len(tensor.args)==1: tensor = tensor.args[0]
+    factor = Mul(*[i+3 for i in range(len(idx_xs))[2::2]])*3/4/pi
+    scalars = r**(len(idx_xs))*Mul(*[a for a in expr.args if not isinstance(a,TensExpr)])/factor
+    if len(idx_xs) == 2: 
+            return scalars*tensor*Id(*idx_xs)
+        
+    # get the list of contracted index and others 
+    idx_contracted = set([-i for i in tensor.get_free_indices()]) & set(idx_xs)
+    idx_not_contracted = tuple(set(idx_xs) - idx_contracted)
+    idx_syms =  [tuple(-i for i in turp if -i in idx_contracted) 
+                 for turp in get_tensor_symmetry(tensor)]
+    idx_syms = idx_syms + [(i,) for i in idx_not_contracted]  
+    
+    # label the symmetric index by number and generate unique permutations, and get occurence of each
+    scheme_idx_xs = [[ii for ii in range(len(idx_syms)) if idx in idx_syms[ii]][0] for idx in idx_xs]
+    perms = [tuple(sorted(perm)) for perm in generate_perm_for_Id(scheme_idx_xs)]
+    setperms = set(perms)
+    reduced_perms = [[[i for i  in pair] for pair in perm] for perm in setperms]
+    occurences = [perms.count(perm) for perm in setperms]
+
+    # replace the markes by the actual index 
+    for ii in range(len(reduced_perms)):
+        markers = [0]*len(idx_syms)
+        for jj in range(len(reduced_perms[ii])): 
+            for idx in range(len(reduced_perms[ii][jj])):
+                rank = reduced_perms[ii][jj][idx]
+                reduced_perms[ii][jj][idx] = idx_syms[rank][markers[rank]]
+                markers[rank] += 1 
+                
+    # built the sum, contract, and symplify 
+    return TensAdd(*[
+        occ*scalars*(tensor*TensMul(*[Id(i,j)for i,j in perm])).contract_delta(Id).canon_bp() 
+        for occ, perm in zip(occurences,reduced_perms)]).doit() 
+    
+### generate all the permultaions of Id(i,j)*Id(k,l) based on the set of index
+def generate_perm_Id(ids):
+    if len(ids) == 2: return Id(*ids)
+    else: return TensAdd(*[TensMul(*[
+        Id(*pair) for pair in perm]) for perm in generate_perm_for_Id(ids)])
+    
+#########################################################################
+# Below functions to generate explicitely spherical harmonics (a lot faster 
+# than doing explicit differentiation )
+#########################################################################
+
+def generate_perm_for_Id_x(ids):
+    '''This gives the list of all permutation of the type x^(m) * Id^(n) 
+    These fundamentales permutation are used to compute explicitely the spherical harmonics 
+    of the form grad^(n) 1/r or even grad^(n) r'''
+    if len(ids)%2: orders = [i+1 for i in range(len(ids))[::2]]
+    else : orders  = [0]+ [i+2 for i in range(len(ids))[::2]]
+    terms = []
+    for order in orders[::-1]:
+        combos = list(combinations(ids, order))
+        for ix in combos:
+            remaining_id = ids.copy()
+            for idx in ix: remaining_id.remove(idx)
+            if len(remaining_id) >= 2:
+                if len(remaining_id) >= 4:
+                    expr = [[ix]  + deltas for deltas in  generate_perm_for_Id(remaining_id) ]
+                    for exp in expr: terms.append(exp)
+                else:  terms.append([ix] + generate_perm_for_Id(remaining_id) )
+            else:  terms.append([ix])
+    return terms                  
+
+def hr(expr, order_r,*idxs): 
+    if expr: 
+        tensor = TensMul(*[a for a in expr.args if isinstance(a,TensExpr) and not a.head == x])
+        if len(tensor.args)==1: tensor = tensor.args[0]
+        scalars = Mul(*[a for a in expr.args if not isinstance(a,TensExpr)])
+        # get the list of contracted index and others 
+        idx_contracted = set([-i for i in tensor.get_free_indices()]) & set(idxs)
+        idx_not_contracted = tuple(set(idxs) - idx_contracted)
+        idx_syms =  [tuple(-i for i in turp if -i in idx_contracted)  
+                     for turp in get_tensor_symmetry(tensor)]
+        idx_syms = idx_syms + [(i,) for i in idx_not_contracted]  
+    else: 
+        scalars,tensor =1,1
+        scheme_idx_xs = list(idxs)
+        idx_syms = []+ [(i,) for i in idxs]  
+    
+    # label the symmetric index by number and generate unique permutations, and get occurence of each
+    scheme_idx_xs = [[ii for ii in range(len(idx_syms)) if idx in idx_syms[ii]][0] for idx in idxs]
+    perms = [ tuple([perm[0]] + sorted(perm[1:]))  for perm in generate_perm_for_Id_x(scheme_idx_xs)]
+    setperms = set(perms)
+    reduced_perms = [[[i for i  in pair] for pair in perm] for perm in setperms]
+    occurences = [perms.count(perm) for perm in setperms]
+    
+    # replace the markes by the actual index 
+    for ii in range(len(reduced_perms)):
+        markers = [0]*len(idx_syms)
+        for jj in range(len(reduced_perms[ii])): 
+            for idx in range(len(reduced_perms[ii][jj])):
+                rank = reduced_perms[ii][jj][idx]
+                reduced_perms[ii][jj][idx] = idx_syms[rank][markers[rank]]
+                markers[rank] += 1 
+
+    # writing the final results with the correct coeff 
+    results = []
+    for perm,occ in zip(reduced_perms , occurences): 
+        res = (scalars *tensor * TensMul(
+                *[x(i) for i in perm[0]],
+                *[Id(i,j) for i,j in perm[1:]]
+                )).contract_delta(Id).canon_bp()
+        order = res.count(x) + (len(idxs)-res.count(x))//2
+        # order_r cannot be other thing than -1 and 1 because this coef is not yet generalized 
+        coef_2 = - 1 if order_r == 1 else 0 if order_r == -1 else 0.666
+        coef = occ * facto_facto(order+ coef_2 )* r**(-2*order+order_r)  
+        results += coef * res 
+    return results 
 
 #################################################################
 ### Below is a pattern to apply scalar function on the terms ###
@@ -523,8 +668,7 @@ def FT_expr(expr,inverse=False):
 
 def h(*idx):
     '''decaying harmonics'''
-    xs = [x(-i) for i in idx]
-    return  grad(1/r,*xs)
+    return hr(None , -1, *idx)
     
 def g(*idx):
     '''growing harmonics'''
@@ -537,85 +681,12 @@ def sh(*idx):
         return r**(len(idx)+1) * h(*idx) / N 
     else:
         return 1
-def G(*idx):
-    '''derivatives of green functions '''
-    G = Id(idx[0],idx[1])/r/8 + x(idx[0])*x(idx[1])/r**3/8
-    xs = [x(-i) for i in idx[2:]]
-    return  grad(G,*xs)
 
 def n(idx):
     return x(idx)/r # norm of position 
 
 def facto_facto(n):
     return (-1)**n * Mul(*[(2*n -2*k-1) for k in range(n)])
-
-def h2(*ids):
-    '''decaying harmonics but explicitely written (faster than h)'''
-    odd = False
-    if len(ids)%2: odd =True
-    terms = []
-    h0=True
-    if odd: orders = [i+1 for i in range(len(ids))[::2]]
-    elif h0: orders  = [0]+ [i+2 for i in range(len(ids))[::2]]
-    else: orders = [i+2 for i in range(len(ids))[::2]]
-
-    for i,order in enumerate(orders[::-1]):
-        combos = list(combinations(ids, order))
-        coef = facto_facto(order+i)
-        # display(order,coef)
-        for ix in combos:
-            remaining_id = [idx for idx in ids if not idx in ix]
-            xis_prod = Mul(*[x(ids) for ids in ix])
-            if len(remaining_id) >= 2:
-                expr = xis_prod*generate_perm(remaining_id).canon_bp()
-            else: 
-                expr = xis_prod
-            terms.append(expr*coef*r**(-2*(order+i)-1))
-    return TensAdd(*terms)
-
-def g2(*idx):
-    '''growing harmonics (faster)'''
-    if idx:
-        return r**(len(idx)*2+1) * h2(*idx)
-    else:
-        return 1
-    
-def sh2(*idx):
-    '''surface harmonics (faster)'''
-    N = -Mul(*[-(3 +2*i) for i in range(len(idx))[:-1]])  
-    if idx:
-        return r**(len(idx)+1) * h2(*idx) / N 
-    else:
-        return 1
-##
-def h2r(*ids):
-    '''explicite n derivative of $r$'''
-    odd = False
-    if len(ids)%2: odd =True
-    terms = []
-    h0=True
-    if odd: orders = [i+1 for i in range(len(ids))[::2]]
-    elif h0: orders  = [0]+ [i+2 for i in range(len(ids))[::2]]
-    else: orders = [i+2 for i in range(len(ids))[::2]]
-
-    for i,order in enumerate(orders[::-1]):
-        combos = list(combinations(ids, order))
-        coef = facto_facto(order+i-1)
-        # display(order,coef)
-        for ix in combos:
-            remaining_id = [idx for idx in ids if not idx in ix]
-            xis_prod = Mul(*[x(ids) for ids in ix])
-            if len(remaining_id) >= 2:
-                expr = xis_prod*generate_perm(remaining_id).canon_bp()
-            else: 
-                expr = xis_prod
-            terms.append(expr*coef*r**(-2*(order+i)+1))
-    return TensAdd(*terms)
-
-# def G2(*idx):
-#     '''explicite form of the derivative of the GF'''
-#     gradnr = h2r(*idx)
-#     return Id(*idx[:2]) *  gradnr.substitute_indices((idx[1],-idx[0])) - gradnr
 
 #############################################
 ### Standart Simplifying functions 
@@ -672,24 +743,30 @@ def replace_tesnor(Xs , names , Ts):
     this is why teh substitution is complexe here'''
     if isinstance(Xs,list): 
         return [replace_tesnor(X,names,Ts) for X in Xs]
+    
     if not isinstance(Ts,list): Ts = [Ts]
-    return compute(Xs.replace(
-        lambda arg: isinstance(arg,Tensor) and arg.head.name in names, 
-        lambda arg: Ts[names.index(arg.head.name)].substitute_indices(
-            *zip(sorted(Ts[names.index(arg.head.name)].get_free_indices() )
-                 if isinstance(Ts[names.index(arg.head.name)].get_free_indices(),list) 
-                 else [Ts[names.index(arg.head.name)].get_free_indices()],
-                 arg.get_indices()
-                 if isinstance(arg.get_indices(),list)
-                 else [arg.get_indices()]),
-            *zip(tensor_indices(f"L_0:100",L), tensor_indices(f"l_0:100",L))
-            ) if isinstance(Ts[names.index(arg.head.name)],TensExpr) 
-        else Ts[names.index(arg.head.name)]
-    ))
+    
+    if isinstance(Xs,TensExpr): 
+        return compute(Xs.replace(
+            lambda arg: isinstance(arg,Tensor) and arg.head.name in names, 
+            lambda arg: Ts[names.index(arg.head.name)].substitute_indices(
+                    *zip(sorted(Ts[names.index(arg.head.name)].get_free_indices() )
+                    if isinstance(Ts[names.index(arg.head.name)].get_free_indices(),list) 
+                    else [Ts[names.index(arg.head.name)].get_free_indices()],
+                    arg.get_indices()
+                    if isinstance(arg.get_indices(),list)
+                    else [arg.get_indices()]),
+                *zip(tensor_indices(f"L_0:100",L), tensor_indices(f"l_0:100",L))
+                ) if isinstance(Ts[names.index(arg.head.name)],TensExpr) 
+            else Ts[names.index(arg.head.name)]
+        ))
+    else:
+        return Xs
         
 
 def convert_to_scalar(X):
     '''This get tensor to scalar symbols.'''
+    if isinstance(X,list): return [convert_to_scalar(X) for X in X]
     X=X.replace(
         lambda arg: isinstance(arg,Tensor),
         lambda arg: symbols(arg.head.name+str(''.join([str(i) for i in arg.get_indices()])))
@@ -707,26 +784,49 @@ def symbol_to_tensor(X,parameters_names):
     for instace it is very case specific 
     
     names are the list of parameters (scalars that we know are tensor in solutions)'''
-    if X.name[:2] in parameters_names:
-        tokens = re.findall(r'-?[A-Za-z](?:_\d+)?', X.name[2:])
-        idxsstr = " ".join(t.lstrip('-').replace('L_', 'l').replace('_', '') for t in tokens)
+    if X.name[0] in parameters_names:
+        tokens = re.findall(r'-?[A-Za-z](?:_\d+)?', X.name )[1:]
+        # the first token is the name of the tensor not idx 
+        idxsstr = " ".join(t.lstrip('-').replace('L_', 'l') for t in tokens)
         idxs = tensor_indices(idxsstr,L)
         if not isinstance(idxs,list): idxs = [idxs]
         idxs = [(a if tokens[i][0] != '-' else -a ) for i,a in enumerate(idxs) ]
-        o = int(X.name[2])
+        o = len(idxs)
         Gn = TensorHead(f'{X.name[0]}_{o}',[L]*o,
                         TensorSymmetry.direct_product(1,o-1))
         return Gn(*idxs)
-    if X.name[:1] == 'd':
-        tokens = re.findall(r'-?[A-Za-z](?:_\d+)?', X.name[1:])
-        idxsstr = " ".join(t.lstrip('-').replace('L_', 'l').replace('_', '') for t in tokens)
+    
+    if X.name[0] == 'd':
+        tokens = re.findall(r'-?[A-Za-z](?:_\d+)?', X.name )[1:]
+        idxsstr = " ".join(t.lstrip('-').replace('L_', 'l')  for t in tokens)
         idxs = tensor_indices(idxsstr,L)
         if not isinstance(idxs,list): idxs = [idxs]
         idxs = [(a if tokens[i][0] != '-' else -a ) for i,a in enumerate(idxs) ]
         d = TensorHead('d',[L])
         return d(*idxs)
+    
+    if X.name[0] == 'x':
+        tokens = re.findall(r'-?[A-Za-z](?:_\d+)?', X.name )[1:]
+        idxsstr = " ".join(t.lstrip('-').replace('L_', 'l')  for t in tokens)
+        idxs = tensor_indices(idxsstr,L)
+        if not isinstance(idxs,list): idxs = [idxs]
+        idxs = [(a if tokens[i][0] != '-' else -a ) for i,a in enumerate(idxs) ]
+        return x(*idxs)
+    
+    if X.name[0] == 'V':
+        name = re.findall(r'-?[A-Za-z](?:_\d+)?', X.name )[0]
+        tokens = re.findall(r'-?[A-Za-z](?:_\d+)?', X.name )[1:]
+        idxsstr = " ".join(t.lstrip('-').replace('L_', 'l')  for t in tokens)
+        idxs = tensor_indices(idxsstr,L)
+        if not isinstance(idxs,list): idxs = [idxs]
+        idxs = [(a if tokens[i][0] != '-' else -a ) for i,a in enumerate(idxs) ]
+        return TensorHead(name,[L]*len(idxs))(*idxs)
+    
     if X.name[:2] == 'KD':
-        return Id(*tensor_indices(X.name[2]+" "+X.name[3],L))
+        tokens = re.findall(r'-?[A-Za-z](?:_\d+)?', X.name[2:])
+        idxsstr = " ".join(t.lstrip('-').replace('L_', 'l') for t in tokens)
+        idxs = tensor_indices(idxsstr,L)
+        return Id(*idxs)
 
 def scalar_to_tensor(X,parameters_names):
     return X.replace(
@@ -739,7 +839,7 @@ def scalar_to_tensor(X,parameters_names):
 # BELOW SOME SPECIFIQUE FUNCION FOR TENSOR EQUAITON SOLUTIONS ############
 # These are originally defined in DDB_methd.ipy 
 
-def Ltraces(expr,names=['P','X','F','U']):
+def Ltraces(expr,names=['P','U']):
     '''take the trace to zero on any index of the tensor that posses the names in the
     list '''
     if isinstance(expr,list): return [Ltraces(X) for X in expr]
@@ -778,12 +878,17 @@ def GFtraces(expr,names=['G','M']):#
                      and len(arg.get_indices()) - len(arg.get_free_indices()) == 2), # G may be remove
         lambda arg: 
             TensorHead(arg.head.name,
-                               [L]*arg.head.rank,
-                               TensorSymmetry.direct_product(len(arg.get_free_indices()),len(arg._get_dummy_indices_set()))
-                               )(*arg.get_free_indices(),*arg._get_dummy_indices_set())
+                        [L]*arg.head.rank,
+                        TensorSymmetry.direct_product(len(arg.get_free_indices()),len(arg._get_dummy_indices_set()))
+                        )(*arg.get_free_indices(),*arg._get_dummy_indices_set())
         ).canon_bp() #the doit() are NEEDED !!!
     else: return expr
     
+    
+def remove_traces(expr,GF_names = ['G','M'],L_names=['P','X','F','U']): 
+    return GFtraces(Ltraces(expr, names=L_names), names=GF_names)
+
+
 def GF_permutes(expr,names=['G','M']):
     '''Generates permutaion of \lapacian grad u etc to explicit the symetry constrains
     This is usefull for exmple when substituing \Lap \grad U by a tensor (which may not be explicit 
@@ -808,12 +913,21 @@ def GF_permutes(expr,names=['G','M']):
         ).canon_bp()
     else:
         return expr
-    
-def remove_traces(expr): return GFtraces(Ltraces(expr))
+
+def removeKD(X,idxs = i):     
+    if isinstance(X,list): return [removeKD(smallX,idxs) for smallX in X]
+    if isinstance(idxs,list): 
+        for idx in idxs: X = removeKD(X,idx)
+        return X
+    return X.replace(
+        lambda arg: isinstance(arg,Tensor) and arg.head == Id 
+        and (idxs in arg.get_indices()),
+        lambda arg: 0
+    ).replace(
+        lambda arg: isinstance(arg,TensMul) and arg.count(Id) >= 2,
+        lambda arg: 0  
+    ).doit()
 
 
-
-
-
-
-
+def sym(X):
+    return (X/2+X.substitute_indices((i,j),(j,i))/2).canon_bp()

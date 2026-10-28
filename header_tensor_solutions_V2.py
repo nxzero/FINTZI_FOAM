@@ -21,14 +21,18 @@ const_all = [*Cf,*Cd,*Cf2,*Cd2,*Cf3,*Cd3]
 def const_to_zero(X,const=const_all):
     return X.replace(lambda arg: arg in const, lambda arg: 0 ).doit()
 
-def solve_all(Eqs,cancel_eq=[],
+def solve_all(Eqs,
+              cancel_eq=[],
+              simplify_func=compute,
               const=const_all,
               Display=True,
               get_system_of_eq=False,
               LUsolve=False):
+    if not isinstance(Eqs,list): Eqs = [Eqs]
     scalar_eqs = []
-    for expr in Eqs:
-        expr = simplify(compute(expr).subs(cancel_eq).doit())
+    for expr in Eqs:    
+        expr = simplify(simplify_func(expr).subs(cancel_eq).doit())
+        
         if Display: display(expr)
         if isinstance(expr, TensAdd):
             scalar_eqs = scalar_eqs + [Mul(*[a 
@@ -134,10 +138,13 @@ def generate_perm_with_cst(ids,Cst):
         if len(remaining_id) >= 2:
             expr = generate_perm_with_cst(remaining_id,Cst) 
         else:
-            expr  = Cst[1][Cst[0]]
+            if isinstance(Cst[1],(list,tuple)): 
+                expr  = Cst[1][Cst[0]]
+            else: 
+                expr = symbols(f'{Cst[1]}_{Cst[0]}') 
             Cst[0] = Cst[0] + 1
         terms.append(Id(i1,ix) * expr)
-    return TensAdd(*terms)
+    return TensAdd(*terms).canon_bp()
 
 
 def harmonic_perm_I_h(ids,Cst,h0=False,Growing=False):
@@ -252,6 +259,7 @@ def Ulamb(*idxs,C=[],Growing=False,Order=[],logs=False):
         return (Up + Uh).canon_bp().doit()
     else: 
         return perm_I_x(idxs,Cst,h0=True,Order=Order,logs=logs)
+    
 # harmonics func 
 def P_f(*idxs,Order=[],C=Cf): 
     return P(*idxs,C=C,Order=Order)
@@ -695,66 +703,174 @@ def L_Sol(Order,Growing=True,Decaying=False,names=['U','P']):
         Uf += UN(i, *idxs)  *xs
         Uf +=  grad(Pn,x(-i))*r**2* (o+3)/2/(o+1)/(2*o+3)
         Uf += -Pn * x(i)* o/ (o+1)/(2*o+3)
-    return remove_traces(compute(Pf)),remove_traces(compute(Uf))
-
+    return compute(Pf),compute(Uf)
+    
 def GF_Sol(order,Ms='M',G=None):
     """This is the solution of forces point force stokes equaitons;
     GF_sol=Green Funciton solution.
     The arg Ms represent teh list of moment to carry out the expansion.
     We can give explicite list of tensor otherwise it just define the generic tensor names """
     Uf,Pf = 0,0
-    idxs  = tensor_indices("k_{1}",L)
-
-    gradG = x(i)*x(-idxs)/r**3/8 + Id(i,-idxs)/r/8
-    if G:
-        gradG = G.substitute_indices(*zip(G.get_free_indices(),[i,-idxs]))
-
     for o in range(order+1)[1:]:
         idxs  = tensor_indices("k_{1:"+str(o+1)+"}",L)
         if not isinstance(idxs,list): idxs = [idxs]
-        if idxs[1:]: gradG = grad(gradG,x(idxs[1:][-1]))
-        if isinstance(Ms,list):
-            D = Ms[o-1].substitute_indices(*zip(Ms[o-1].get_free_indices(),idxs))
-        else:
-            D = TensorHead(f'{Ms}_{o}',[L]*o,TensorSymmetry.direct_product(1,o-1))(*idxs)
-        Pf += compute(- D*h2(*[-i for i in idxs]) / 4)
-        Uf += compute( D*gradG)
-    return remove_traces(compute(Pf)),remove_traces(compute(Uf))
+        idxs_m  = [-i for i in idxs]
+        if isinstance(Ms,list) and len(Ms)==2:
+            D = TensorHead(f'{Ms[0]}_{o}',[L]*o,TensorSymmetry.direct_product(1,o-1))(*idxs_m)
+            D2 = TensorHead(f'{Ms[1]}_{o}',[L]*o,TensorSymmetry.direct_product(o))(*idxs_m)
+        else: 
+            D = TensorHead(f'{Ms}_{o}',[L]*o,TensorSymmetry.direct_product(1,o-1))(*idxs_m)
+        
+        Pf += hr(-D/4,-1, *idxs)
+        Uf += (hr(D.substitute_indices((idxs_m[0],i))  /4, -1, *idxs[1:]) 
+               - hr(D/8,1,i,*idxs)).canon_bp()
+        if isinstance(Ms,list) and len(Ms)==2:
+            Uf += hr(-D2/4, -1, i,*idxs )
+            
+    return Pf,Uf
 
-def Get_equation(expr):
-    '''This integrate the equation and symplify it one last time'''
-    surf = remove_traces(S_int(expr/pi))
-    return surf
-
-def eq_perms(EQs,unkown_names,parameters_names,idx_all=None):
+def eq_perms(EQs,unkown_names,parameters_names,idx_all):
     '''This generate all permutation of index and apply symmetry contraint on
     tensor in the expression'''
     eqs=[]
     for eq in EQs:
         idx = eq.get_free_indices()
-        if not idx_all: idx_all = idx
         permut = list(permutations(idx_all,r=len(idx)))
         for perm in permut:
             dict = [(i,i_new) for i,i_new in zip(idx,perm)]
-            eqs.append(
-                # maybe only canon_bp is needed now... to be tried 
-                # convert_to_scalar(remove_traces(eq.substitute_indices(*dict)))
-                convert_to_scalar(eq.substitute_indices(*dict).canon_bp())
-            )
+            scalar_eq = convert_to_scalar(eq.substitute_indices(*dict).canon_bp())
+            if scalar_eq not in eqs: eqs.append(scalar_eq)
+            
     scalar_unkown = list(set([s for SS in eqs for s in SS.free_symbols if s.name[0] in unkown_names]))
     scalar_parameters = list(set([s for SS in eqs for s in SS.free_symbols if s.name[0] in parameters_names]))
-    return list(set(eqs)),scalar_unkown,scalar_parameters
+    return eqs,scalar_unkown,scalar_parameters
 
-# solve all tensors 
-def solve_all_tensors(EQs,unkown_names,parameters_names,
-              idx_all=None,Display=True):
-    if Display: [display(eq) for eq in EQs]
-    eqs,unkown,parameters = eq_perms(EQs,unkown_names,parameters_names,idx_all)
-    print('Unkown: ', len(unkown),unkown)
-    print('Equations: ', len(eqs),'...')
-    sols = list(factor(linsolve(eqs,unkown),parameters))[0]
+def eq_perms2 (EQs,unkown_names,parameters_names,idx_all,idx_not_sym):
+    '''This generate the permutaion over the index that is not symmetric given in argument'''
+    eqs,eqs2=[],[]
+    for eq in EQs:
+        idxs = eq.get_free_indices()
+        perms = [(idx_not_sym,idx) for idx in idxs 
+                 if idx_not_sym in idxs and idx != idx_not_sym]
+        eqs.append(eq.substitute_indices(*zip(sorted(idxs),idx_all)))
+        for perm in perms: 
+            eqs.append(eq.substitute_indices(
+                perm,perm[::-1]).canon_bp().substitute_indices(*zip(sorted(idxs),idx_all)))
+    
+    for eq in eqs:
+        if eq.rank < len(idx_all): 
+            idxs = sorted(eq.get_free_indices())
+            perms = [list(perm) for perm in combinations(idx_all,r=len(idxs))
+                     if list(perm) != idxs ]
+            for perm in perms:
+                dict = [(i,i_new) for i,i_new in zip(idxs,perm)]
+                eqs2.append(eq.substitute_indices(*dict).canon_bp()) 
+            
+    eqs = convert_to_scalar(eqs + eqs2)
+    
+    scalar_unkown = list(set([s for SS in eqs for s in SS.free_symbols if s.name[0] in unkown_names]))
+    parameters_names = list(set([s for SS in eqs for s in SS.free_symbols if s.name[0] in parameters_names]))
+    return eqs,scalar_unkown,parameters_names
+
+def solve_all_tensors(EQs,unkown_names,parameters_names,idx_all,idx_not_sym=None,Display=False):
+    '''This function solve for the tensor unkown of a linear system of tensor equations'''    
+    if Display: [display(eq) for eq in EQs] 
+    if idx_not_sym: 
+        eqs,unkowns,parameters = eq_perms2(EQs,unkown_names,parameters_names,idx_all,idx_not_sym)
+    else: 
+        eqs,unkowns,parameters = eq_perms(EQs,unkown_names,parameters_names,idx_all)
+        
+
+    printt('Unkown: ', len(unkowns),unkowns)
+    printt('Equations: ', len(eqs),'...')
+    # sols = list(factor(linsolve(eqs,unkowns),parameters))[0]
+    sols = list(linsolve(eqs,unkowns))[0]
+
+    printt('System solved !')
     if Display:
-        for un , sol in zip(unkown,sols):  print(un ,'=', sol)
-    parameters_names = list(set( [para.name[:2] for para in parameters] ))
-    sols = [remove_traces(scalar_to_tensor(eq,parameters_names)) for eq in sols]
-    return sols,unkown,parameters
+        for un , sol in zip(unkowns,sols):  print(un ,'=', sol)
+    # below it just sort the results 
+    idx_all_str = [str(idx) for idx in idx_all]
+    tensor_names = [unkown for unkown in unkowns
+             if unkown.name[0] in unkown_names 
+             and re.findall(r'-?[A-Za-z](?:_\d+)?', unkown.name)[1:] 
+             == idx_all_str[:len(re.findall(r'-?[A-Za-z](?:_\d+)?', unkown.name)[1:] )]
+             and 'L_0' not in re.findall(r'-?[A-Za-z](?:_\d+)?', unkown.name)[1:]
+             ]
+
+    res = []
+    for unkown_name in unkown_names: 
+        sub_tensor_names = [unkown  for unkown in tensor_names if unkown.name[0] == unkown_name]
+        sub_sols = [sols[unkowns.index(tensor_name)] for tensor_name in sub_tensor_names]     
+        res.append([scalar_to_tensor(eq,parameters_names).canon_bp() if eq else 0 for eq in sub_sols])
+    return res if len(res) > 1 else res[0] # returns list of list of unkowns 
+
+####################################################################
+# generate the solution based on permutations 
+# These functions are a bit useless acctually but they work and could be opti
+def permutations_I_tens_with_constant(ids,Cst,tens,how_many_Id=False,index_not_on_Id=None):
+    odd = False
+    if len(ids)%2: odd =True
+    terms = []
+    
+    if odd: orders = [i+1 for i in range(len(ids))[::2]]
+    else: orders = [i+2 for i in range(len(ids))[::2]]
+
+    for order in orders:
+        combos = list(combinations(ids, order))
+        for ix in combos:
+            remaining_id = [idx for idx in ids if not idx in ix]
+            
+            if (not (index_not_on_Id and index_not_on_Id in remaining_id) 
+                and not (how_many_Id and len(remaining_id) > how_many_Id*2)): 
+                for ten in tens: 
+                    if len(ix) == ten.rank:
+                        ixs = []
+                        for ix in permutations(ix): 
+                            if ten(*ix).canon_bp().get_indices() not in ixs: 
+                                if len(remaining_id) >= 2:
+                                    expr = ten(*ix)*generate_perm_with_cst(remaining_id,Cst)
+                                else: 
+                                    if isinstance(Cst[1],(list,tuple)):  
+                                        expr = Cst[1][Cst[0]]*ten(*ix) 
+                                    else: 
+                                        expr = symbols(f'{Cst[1]}_{Cst[0]}') *ten(*ix) 
+                                    Cst[0] = Cst[0]+1
+
+
+                                terms.append( expr)
+                                ixs.append(ten(*ix).canon_bp().get_indices()) 
+                            
+                    
+    return TensAdd(*terms)
+
+###########################################################
+### These function guess the form of a tensor based on constnat tensor
+###wzy more efficient ! 
+def moment(tens,tens_bis,order,Cst): 
+    all_tens = tens+tens_bis
+    idxs = tensor_indices(f"k_0:{order}",L)
+    if not isinstance(idxs,list): idxs=[idxs]
+    # cs = symbols(f'c_0:{len(list(permutations(idxs)))*len(tens)}')
+    moment = permutations_I_tens_with_constant(idxs,Cst,all_tens,how_many_Id=1,index_not_on_Id=idxs[0]) # this can be optimized to avoid generating the excluded functions I_ij and I_12 I_34 ... etc 
+    if moment == 0: return 0 
+    for ten in all_tens: 
+        id_list = []
+        moment.replace(
+            lambda arg: isinstance(arg,TensMul) and arg.has(ten) , 
+            lambda arg: id_list.append( (arg.get_indices(),arg.args[0]) ) 
+        )
+        if moment.rank == ten.rank: # in that case the I makes all things symmetric
+            for order in range(ten.rank): 
+                cst_list =  [ cst   for idx,cst in id_list if idx[order] == idxs[0]]
+                permutes = [(cst,cst_list[0]) for cst in cst_list]
+                moment = moment.subs(permutes)
+        else: 
+            cst_list =  [ cst   for idx,cst in id_list]
+            moment = moment.subs([(cst,cst_list[0]) for cst in cst_list ])
+    moment = replace_tesnor(moment, [tenb.name for tenb in tens_bis],  
+                            [ten(i,k,-k) if order == 0 else 
+                                ten(*tensor_indices(f"k_0:{order+1}",L),k,-k) for order,ten in 
+                             enumerate(tens[2:])])
+        
+    return moment
